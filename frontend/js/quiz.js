@@ -192,13 +192,17 @@ class QuizManager {
         const container = document.getElementById('quizContainer');
         const results = this.quizResults;
 
+        const maxScore = Number(results.max_score) || 0;
+        const totalScore = Number(results.total_score) || 0;
+        const percent = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+
         let html = `
             <div class="quiz-header">
                 <h2>测验结果</h2>
             </div>
             <div class="score-display">
-                <div class="score">${(results.score * 100).toFixed(1)}%</div>
-                <div>总分: ${results.total_score.toFixed(1)} / ${results.max_score}</div>
+                <div class="score">${percent.toFixed(1)}%</div>
+                <div>总分: ${totalScore.toFixed(1)} / ${maxScore}</div>
             </div>
             <div class="quiz-results">
         `;
