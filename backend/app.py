@@ -1,7 +1,10 @@
 import os
+import re
 import uuid
+import shutil
 import asyncio
 import json
+import random
 from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
 
@@ -13,18 +16,19 @@ from sentence_transformers import SentenceTransformer
 
 from file_processor import FileProcessor
 from knowledge_base import KnowledgeBase
-from rag_engine import RAGEngine
+from rag_engine import RAGEngine, build_generic_system_prompt
 from quiz_engine import QuizEngine
 
 # --- Paths ---
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 UPLOAD_BASE_DIR = os.path.join(BASE_DIR, 'data', 'uploaded')
 VECTOR_STORE_BASE_DIR = os.path.join(BASE_DIR, 'data', 'vector_store')
+ASSISTANTS_CONFIG_PATH = os.path.join(BASE_DIR, 'data', 'assistants_config.json')
 os.makedirs(UPLOAD_BASE_DIR, exist_ok=True)
 os.makedirs(VECTOR_STORE_BASE_DIR, exist_ok=True)
 
-# --- Assistant Configuration ---
-ASSISTANTS_CONFIG = {
+# --- Default Assistant Configuration (seed for first run) ---
+_DEFAULT_ASSISTANTS = {
     "data_structures": {
         "id": "data_structures",
         "name": "数据结构与算法",
@@ -59,6 +63,26 @@ ASSISTANTS_CONFIG = {
     }
 }
 
+_ICON_PALETTE = ["📖", "🎓", "🔬", "💡", "🧠", "📐", "🌐", "⚡", "🔧", "🎯"]
+_COLOR_PALETTE = ["#6366f1", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316", "#06b6d4",
+                  "#84cc16", "#a855f7", "#e11d48", "#0891b2"]
+
+
+def _load_assistants_config() -> Dict[str, Any]:
+    if os.path.exists(ASSISTANTS_CONFIG_PATH):
+        with open(ASSISTANTS_CONFIG_PATH, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return dict(_DEFAULT_ASSISTANTS)
+
+
+def _save_assistants_config(config: Dict[str, Any]):
+    with open(ASSISTANTS_CONFIG_PATH, 'w', encoding='utf-8') as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
+
+
+ASSISTANTS_CONFIG = _load_assistants_config()
+_save_assistants_config(ASSISTANTS_CONFIG)
+
 # --- Global shared instances ---
 file_processor = FileProcessor()
 # Shared embedding model loaded once - all KB instances use the same model
@@ -84,7 +108,8 @@ class AssistantInstance:
         )
         self.rag_engine = RAGEngine(
             knowledge_base=self.knowledge_base,
-            assistant_id=assistant_id
+            assistant_id=assistant_id,
+            system_prompt=config.get("system_prompt")
         )
         self.quiz_engine = QuizEngine(
             knowledge_base=self.knowledge_base,
@@ -339,6 +364,88 @@ async def clear_knowledge_base(assistant_id: str = Form("data_structures")):
     assistant = get_assistant(assistant_id)
     assistant.knowledge_base.clear()
     return {"message": "知识库已清空", "assistant_id": assistant_id}
+
+
+def _generate_assistant_id(name: str) -> str:
+    slug = re.sub(r'[^a-zA-Z0-9一-鿿]+', '_', name).strip('_').lower()
+    if not slug:
+        slug = "assistant"
+    short_id = uuid.uuid4().hex[:6]
+    return f"{slug}_{short_id}"
+
+
+@app.post("/api/assistants/create")
+async def create_assistant(
+    name: str = Form(...),
+    description: str = Form(...)
+):
+    """Create a new custom assistant."""
+    name = name.strip()
+    description = description.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="助手名称不能为空")
+    if not description:
+        raise HTTPException(status_code=400, detail="助手描述不能为空")
+
+    assistant_id = _generate_assistant_id(name)
+
+    icon = random.choice(_ICON_PALETTE)
+    color = random.choice(_COLOR_PALETTE)
+    system_prompt = build_generic_system_prompt(name, description)
+
+    config = {
+        "id": assistant_id,
+        "name": name,
+        "icon": icon,
+        "description": description,
+        "system_prompt_key": assistant_id,
+        "system_prompt": system_prompt,
+        "color": color
+    }
+
+    ASSISTANTS_CONFIG[assistant_id] = config
+    _save_assistants_config(ASSISTANTS_CONFIG)
+
+    assistant_registry[assistant_id] = AssistantInstance(config)
+
+    return {
+        "message": f"助手「{name}」创建成功",
+        "assistant": {
+            "id": assistant_id,
+            "name": name,
+            "icon": icon,
+            "description": description,
+            "color": color
+        }
+    }
+
+
+@app.post("/api/assistants/delete")
+async def delete_assistant(
+    assistant_id: str = Form(...)
+):
+    """Delete an assistant and clean up all its data."""
+    if assistant_id not in assistant_registry:
+        raise HTTPException(status_code=404, detail=f"助手 '{assistant_id}' 不存在")
+
+    assistant = assistant_registry[assistant_id]
+
+    assistant.knowledge_base.clear()
+
+    vector_store_path = os.path.join(VECTOR_STORE_BASE_DIR, assistant_id)
+    if os.path.exists(vector_store_path):
+        shutil.rmtree(vector_store_path)
+
+    upload_dir = os.path.join(UPLOAD_BASE_DIR, assistant_id)
+    if os.path.exists(upload_dir):
+        shutil.rmtree(upload_dir)
+
+    del assistant_registry[assistant_id]
+
+    ASSISTANTS_CONFIG.pop(assistant_id, None)
+    _save_assistants_config(ASSISTANTS_CONFIG)
+
+    return {"message": f"助手已删除", "assistant_id": assistant_id}
 
 
 if __name__ == "__main__":

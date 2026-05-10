@@ -61,12 +61,30 @@ SYSTEM_PROMPTS = {
 }
 
 
+def build_generic_system_prompt(name: str, description: str) -> str:
+    """Build a generic system prompt for user-created assistants."""
+    return f"""你是一位「{name}」领域的资深助教。
+
+{description}
+
+回答原则：
+1. 回答应基于提供的知识上下文。如果知识库中有相关内容，请优先引用并详细展开。
+2. 如果问题与知识库无关或知识库中没有相关信息，请如实说明你无法从资料中找到答案，然后尝试基于你自己的知识给出合理的建议。
+3. 回答要条理清晰，必要时使用分步解释、例子或类比来帮助理解。
+4. 对于涉及代码或公式的问题，提供清晰、完整、带注释的示例。
+5. 对于复杂概念，分解为易于理解的部分。
+6. 如果用户的问题不够清晰，请引导用户提供更多细节。
+
+始终使用中文回复，保持专业、耐心且富有教育意义。"""
+
+
 class RAGEngine:
     """Builds prompts with RAG context for the LLM."""
 
-    def __init__(self, knowledge_base, assistant_id: str = "data_structures"):
+    def __init__(self, knowledge_base, assistant_id: str = "data_structures", system_prompt: Optional[str] = None):
         self.knowledge_base = knowledge_base
         self.assistant_id = assistant_id
+        self.system_prompt = system_prompt
         self.top_k = 5  # number of chunks to retrieve
         self.max_context_chars = 4000  # limit context length
 
@@ -111,7 +129,10 @@ class RAGEngine:
         context = self._format_context(results)
 
         # Get system prompt for this assistant
-        system_prompt = SYSTEM_PROMPTS.get(self.assistant_id, SYSTEM_PROMPTS["data_structures"])
+        if self.system_prompt:
+            system_prompt = self.system_prompt
+        else:
+            system_prompt = SYSTEM_PROMPTS.get(self.assistant_id, SYSTEM_PROMPTS["data_structures"])
 
         # Build contextualized user message
         user_message = f"""以下是从知识库中检索到的相关内容（可能包含中英文混合内容）：

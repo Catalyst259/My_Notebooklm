@@ -130,6 +130,41 @@ class APIClient {
         if (!response.ok) throw new Error('Failed to clear knowledge base');
         return await response.json();
     }
+
+    // Create a new custom assistant
+    async createAssistant(name, description) {
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('description', description);
+
+        const response = await fetch(`${this.baseUrl}/api/assistants/create`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: '创建失败' }));
+            throw new Error(error.detail || 'Failed to create assistant');
+        }
+        return await response.json();
+    }
+
+    // Delete an assistant
+    async deleteAssistant(assistantId) {
+        const formData = new FormData();
+        formData.append('assistant_id', assistantId);
+
+        const response = await fetch(`${this.baseUrl}/api/assistants/delete`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: '删除失败' }));
+            throw new Error(error.detail || 'Failed to delete assistant');
+        }
+        return await response.json();
+    }
 }
 
 // Export singleton instance

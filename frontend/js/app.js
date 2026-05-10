@@ -33,6 +33,17 @@ class App {
             this.showAssistantSelection();
         });
 
+        // Create assistant
+        document.getElementById('createAssistantBtn').addEventListener('click', () => {
+            document.getElementById('createAssistantModal').style.display = 'flex';
+        });
+        document.getElementById('cancelCreateBtn').addEventListener('click', () => {
+            document.getElementById('createAssistantModal').style.display = 'none';
+            document.getElementById('newAssistantName').value = '';
+            document.getElementById('newAssistantDesc').value = '';
+        });
+        document.getElementById('confirmCreateBtn').addEventListener('click', () => this.createAssistant());
+
         // Stats
         document.getElementById('refreshStatsBtn').addEventListener('click', () => this.refreshStats());
 
@@ -90,14 +101,68 @@ class App {
             card.style.borderColor = assistant.color;
 
             card.innerHTML = `
+                <button class="card-delete-btn" title="删除助手">&times;</button>
                 <div class="icon">${assistant.icon}</div>
                 <div class="name">${assistant.name}</div>
                 <div class="description">${assistant.description}</div>
             `;
 
             card.addEventListener('click', () => this.selectAssistant(assistant));
+            card.querySelector('.card-delete-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.deleteAssistant(assistant);
+            });
             container.appendChild(card);
         });
+    }
+
+    async createAssistant() {
+        const nameInput = document.getElementById('newAssistantName');
+        const descInput = document.getElementById('newAssistantDesc');
+        const name = nameInput.value.trim();
+        const description = descInput.value.trim();
+
+        if (!name) {
+            showToast('请输入助手名称', 'error');
+            return;
+        }
+        if (!description) {
+            showToast('请输入助手描述', 'error');
+            return;
+        }
+
+        try {
+            await api.createAssistant(name, description);
+            document.getElementById('createAssistantModal').style.display = 'none';
+            nameInput.value = '';
+            descInput.value = '';
+            await this.loadAssistants();
+            showToast(`助手「${name}」创建成功`, 'success');
+        } catch (error) {
+            console.error('Failed to create assistant:', error);
+            showToast(error.message || '创建助手失败', 'error');
+        }
+    }
+
+    async deleteAssistant(assistant) {
+        if (!confirm(`确定要删除「${assistant.name}」助手吗？此操作将同时清除该助手的知识库和上传文件，不可恢复！`)) return;
+
+        try {
+            await api.deleteAssistant(assistant.id);
+            if (this.currentAssistant && this.currentAssistant.id === assistant.id) {
+                this.currentAssistant = null;
+                document.getElementById('assistantSelectorSection').style.display = 'none';
+                document.getElementById('uploadSection').style.display = 'none';
+                document.getElementById('statsSection').style.display = 'none';
+                document.getElementById('actionsSection').style.display = 'none';
+                this.showAssistantSelection();
+            }
+            await this.loadAssistants();
+            showToast(`助手「${assistant.name}」已删除`, 'success');
+        } catch (error) {
+            console.error('Failed to delete assistant:', error);
+            showToast(error.message || '删除助手失败', 'error');
+        }
     }
 
     selectAssistant(assistant) {

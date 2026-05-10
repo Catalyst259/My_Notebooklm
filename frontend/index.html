@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>多学科学习助手</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/styles.css?v=2">
 </head>
 <body>
     <div class="container">
@@ -61,7 +61,10 @@
             <main class="content">
                 <!-- Assistant Selection View -->
                 <div id="assistantSelectionView" class="view active">
-                    <h2>选择学习助手</h2>
+                    <div class="view-header">
+                        <h2>选择学习助手</h2>
+                        <button id="createAssistantBtn" class="btn-icon" title="创建新助手">+</button>
+                    </div>
                     <div id="assistantCards" class="assistant-cards"></div>
                 </div>
 
@@ -85,11 +88,26 @@
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
+    <!-- Create Assistant Modal -->
+    <div id="createAssistantModal" class="modal-overlay" style="display:none;">
+        <div class="modal">
+            <h3>创建新助手</h3>
+            <label class="modal-label">名称</label>
+            <input type="text" id="newAssistantName" placeholder="例如：高等数学" maxlength="30">
+            <label class="modal-label">描述</label>
+            <textarea id="newAssistantDesc" placeholder="简要描述该助手的教学范围和定位" rows="3" maxlength="200"></textarea>
+            <div class="modal-actions">
+                <button id="cancelCreateBtn" class="btn btn-secondary">取消</button>
+                <button id="confirmCreateBtn" class="btn btn-primary">创建</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
-    <script src="js/api.js"></script>
-    <script src="js/chat.js"></script>
-    <script src="js/quiz.js"></script>
-    <script src="js/upload.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/api.js?v=2"></script>
+    <script src="js/chat.js?v=2"></script>
+    <script src="js/quiz.js?v=2"></script>
+    <script src="js/upload.js?v=2"></script>
+    <script src="js/app.js?v=2"></script>
 </body>
 </html>
