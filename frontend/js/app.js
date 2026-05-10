@@ -180,6 +180,7 @@ class App {
         // Show sidebar sections
         document.getElementById('assistantSelectorSection').style.display = 'block';
         document.getElementById('uploadSection').style.display = 'block';
+        document.getElementById('fileListSection').style.display = 'block';
         document.getElementById('statsSection').style.display = 'block';
         document.getElementById('actionsSection').style.display = 'block';
 
@@ -192,8 +193,9 @@ class App {
         // Add welcome message
         chatManager.addMessage('system', `已切换到 ${assistant.name} 助手。你可以上传学习资料或直接提问。`);
 
-        // Refresh stats
+        // Refresh stats and file list
         this.refreshStats();
+        this.refreshFileList();
 
         showToast(`已选择 ${assistant.name}`, 'success');
     }
@@ -227,6 +229,61 @@ class App {
         const sizes = ['B', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    async refreshFileList() {
+        if (!this.currentAssistant) return;
+
+        try {
+            const data = await api.getFiles(this.currentAssistant.id);
+            const fileListDiv = document.getElementById('fileList');
+
+            if (data.files.length === 0) {
+                fileListDiv.innerHTML = '<p style="color: #666; font-size: 0.9em;">暂无文件</p>';
+                return;
+            }
+
+            fileListDiv.innerHTML = '';
+            data.files.forEach(file => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+
+                const uploadDate = new Date(file.upload_date).toLocaleString('zh-CN');
+                const fileSize = this.formatBytes(file.file_size);
+
+                item.innerHTML = `
+                    <div class="file-info">
+                        <div class="file-name">${file.original_name}</div>
+                        <div class="file-meta">
+                            ${file.chunk_count} 块 · ${fileSize} · ${uploadDate}
+                        </div>
+                    </div>
+                    <button class="file-delete-btn" data-uuid="${file.file_uuid}">删除</button>
+                `;
+
+                item.querySelector('.file-delete-btn').addEventListener('click', () => {
+                    this.deleteFile(file);
+                });
+
+                fileListDiv.appendChild(item);
+            });
+        } catch (error) {
+            console.error('Failed to refresh file list:', error);
+        }
+    }
+
+    async deleteFile(file) {
+        if (!confirm(`确定要删除「${file.original_name}」吗？此操作不可恢复！`)) return;
+
+        try {
+            await api.deleteFile(file.file_uuid, this.currentAssistant.id);
+            await this.refreshStats();
+            await this.refreshFileList();
+            showToast(`文件「${file.original_name}」已删除`, 'success');
+        } catch (error) {
+            console.error('Failed to delete file:', error);
+            showToast('删除文件失败', 'error');
+        }
     }
 
     async clearHistory() {

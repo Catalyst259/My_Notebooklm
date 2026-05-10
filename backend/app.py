@@ -5,6 +5,7 @@ import shutil
 import asyncio
 import json
 import random
+import hashlib
 from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
 
@@ -183,47 +184,112 @@ async def stats(assistant_id: str = Query("data_structures")):
 
 @app.post("/api/upload")
 async def upload_file(
-    file: UploadFile = File(...),
+    files: List[UploadFile] = File(...),
     assistant_id: str = Form("data_structures")
 ):
     """
-    Upload a file, process it (parse + chunk + embed), and add to knowledge base
+    Upload one or more files, process them (parse + chunk + embed), and add to knowledge base
     of the specified assistant.
     """
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file provided.")
-    
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided.")
+
     assistant = get_assistant(assistant_id)
-
-    # Save uploaded file in assistant-specific directory
-    file_ext = os.path.splitext(file.filename)[1].lower()
-    safe_filename = f"{uuid.uuid4().hex}{file_ext}"
     upload_dir = get_upload_dir(assistant_id)
-    file_path = os.path.join(upload_dir, safe_filename)
+    results = []
 
-    content = await file.read()
-    with open(file_path, 'wb') as f:
-        f.write(content)
+    for file in files:
+        if not file.filename:
+            results.append({
+                "file_name": "unknown",
+                "success": False,
+                "error": "No filename provided"
+            })
+            continue
 
-    # Process the file
-    try:
-        result = file_processor.process_file(file_path)
-    except Exception as e:
-        # Clean up on failure
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        raise HTTPException(status_code=400, detail=f"File processing failed: {str(e)}")
+        # Generate UUID filename
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        file_uuid = uuid.uuid4().hex
+        safe_filename = f"{file_uuid}{file_ext}"
+        file_path = os.path.join(upload_dir, safe_filename)
 
-    # Add chunks to the assistant's knowledge base
-    assistant.knowledge_base.add_chunks(result['chunks'], file.filename)
+        # Read and save file
+        content = await file.read()
+        with open(file_path, 'wb') as f:
+            f.write(content)
 
+        # Calculate file hash
+        file_hash = hashlib.sha256(content).hexdigest()
+
+        # Process the file
+        try:
+            result = file_processor.process_file(file_path)
+        except Exception as e:
+            # Clean up on failure
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            results.append({
+                "file_name": file.filename,
+                "success": False,
+                "error": str(e)
+            })
+            continue
+
+        # Add chunks to the assistant's knowledge base with full metadata
+        try:
+            assistant.knowledge_base.add_chunks(
+                chunks=result['chunks'],
+                file_uuid=file_uuid,
+                original_name=file.filename,
+                physical_path=file_path,
+                file_size=len(content),
+                file_hash=file_hash,
+                total_tokens=result['total_tokens']
+            )
+            results.append({
+                "file_name": file.filename,
+                "success": True,
+                "chunk_count": result['chunk_count'],
+                "total_tokens": result['total_tokens'],
+                "file_uuid": file_uuid
+            })
+        except Exception as e:
+            # Clean up on failure
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            results.append({
+                "file_name": file.filename,
+                "success": False,
+                "error": str(e)
+            })
+
+    success_count = sum(1 for r in results if r.get('success', False))
     return {
-        "message": f"文件 '{file.filename}' 处理成功",
-        "file_name": file.filename,
-        "total_tokens": result['total_tokens'],
-        "chunk_count": result['chunk_count'],
-        "assistant_id": assistant_id
+        "message": f"已处理 {len(files)} 个文件，{success_count} 个成功",
+        "results": results
     }
+
+
+@app.get("/api/files")
+async def list_files(assistant_id: str = Query("data_structures")):
+    """List all files in the assistant's knowledge base."""
+    assistant = get_assistant(assistant_id)
+    files = assistant.knowledge_base.get_files()
+    return {"files": files}
+
+
+@app.delete("/api/files/{file_uuid}")
+async def delete_file(
+    file_uuid: str,
+    assistant_id: str = Query("data_structures")
+):
+    """Delete a specific file from the knowledge base."""
+    assistant = get_assistant(assistant_id)
+    try:
+        assistant.knowledge_base.delete_file(file_uuid)
+        return {"message": "文件已删除", "file_uuid": file_uuid}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @app.post("/api/chat")

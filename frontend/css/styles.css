@@ -181,6 +181,99 @@ textarea {
     color: #1e40af;
 }
 
+/* Upload Zone */
+.upload-zone {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-bottom: 10px;
+}
+
+.upload-zone:hover,
+.upload-zone.drag-over {
+    border-color: #4f46e5;
+    background: #f0f0ff;
+}
+
+.upload-hint {
+    font-size: 0.85em;
+    color: #666;
+    margin-top: 4px;
+}
+
+/* Upload Progress */
+.upload-progress {
+    margin-top: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.progress-item {
+    padding: 4px 0;
+    font-size: 0.9em;
+}
+
+.progress-item.success {
+    color: #059669;
+}
+
+.progress-item.error {
+    color: #dc2626;
+}
+
+.status-text.warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* File List */
+.file-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.file-item {
+    padding: 8px;
+    margin: 4px 0;
+    background: #f8f9fa;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.file-info {
+    flex: 1;
+    font-size: 0.9em;
+}
+
+.file-name {
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+.file-meta {
+    color: #666;
+    font-size: 0.85em;
+}
+
+.file-delete-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.85em;
+}
+
+.file-delete-btn:hover {
+    background: #c82333;
+}
+
 /* Current Assistant Display */
 .current-assistant {
     padding: 12px;

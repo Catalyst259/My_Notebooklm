@@ -29,7 +29,7 @@ class APIClient {
     // Upload file
     async uploadFile(file, assistantId) {
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('files', file);
         formData.append('assistant_id', assistantId);
 
         const response = await fetch(`${this.baseUrl}/api/upload`, {
@@ -42,6 +42,46 @@ class APIClient {
             throw new Error(error.detail || 'Upload failed');
         }
 
+        return await response.json();
+    }
+
+    async uploadFiles(files, assistantId) {
+        const formData = new FormData();
+        for (const file of files) {
+            formData.append('files', file);
+        }
+        formData.append('assistant_id', assistantId);
+
+        const response = await fetch(`${this.baseUrl}/api/upload`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Upload failed');
+        }
+
+        return await response.json();
+    }
+
+    async getFiles(assistantId) {
+        const response = await fetch(`${this.baseUrl}/api/files?assistant_id=${assistantId}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch files');
+        }
+        return await response.json();
+    }
+
+    async deleteFile(fileUuid, assistantId) {
+        const response = await fetch(
+            `${this.baseUrl}/api/files/${fileUuid}?assistant_id=${assistantId}`,
+            { method: 'DELETE' }
+        );
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to delete file');
+        }
         return await response.json();
     }
 
