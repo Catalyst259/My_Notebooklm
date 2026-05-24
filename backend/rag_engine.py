@@ -138,6 +138,60 @@ def build_generic_system_prompt(name: str, description: str) -> str:
     )
 
 
+# ============================================================
+# 思维导图操作 prompt（叠加在学科 system prompt 之后）
+# ============================================================
+MINDMAP_OP_PROMPTS = {
+    "generate_tree": (
+        "现在切换到「思维导图生成」模式。\n"
+        "你正在为学生生成一份学习思维导图。\n"
+        "## 严格输出规范\n"
+        "- 仅输出 Markdown 项目符号列表，使用 `-` 开头，每级缩进**恰好 2 个空格**。\n"
+        "- 第一行必须是根主题，不缩进，例如：`- {topic}`。\n"
+        "- 深度不超过 {depth} 层（含根节点）。\n"
+        "- 每个父节点的直接子节点不超过 {width} 个。\n"
+        "- 节点文字保持精炼（不超过 20 字），不加序号、不加句号。\n"
+        "- 不输出 Markdown 标题、说明文字、代码块、空行或任何前言/总结。\n"
+        "- 不要在节点后追加解释，纯结构。\n"
+        "## 主题\n{topic}"
+    ),
+    "expand_node": (
+        "现在切换到「思维导图节点扩展」模式。\n"
+        "你正在为已有思维导图中的一个节点生成新的子节点。\n"
+        "## 节点信息\n"
+        "- 路径（从根到目标节点）：{path}\n"
+        "- 目标节点已有的兄弟子节点（必须避免重复）：{siblings}\n"
+        "## 严格输出规范\n"
+        "- 仅输出恰好 {count} 行 Markdown 项目符号，每行形如 `- 子节点名称`，**不缩进**、**不嵌套**。\n"
+        "- 这些都是目标节点的同级新增子节点；不要把它们彼此嵌套，也不要把已有兄弟列出来。\n"
+        "- 节点文字精炼（不超过 20 字），不带序号、不带句号。\n"
+        "- 不输出 Markdown 标题、说明文字、代码块、空行或任何前言/总结。"
+    ),
+    "generate_note": (
+        "现在切换到「思维导图节点笔记」模式。\n"
+        "为思维导图中的某个节点撰写一段简洁的中文学习笔记。\n"
+        "## 节点路径\n{path}\n"
+        "## 严格输出规范\n"
+        "- 2 至 4 句话；必要时可包含 Markdown 代码块或 LaTeX 公式（`\\(...\\)` / `\\[...\\]`）。\n"
+        "- 仅输出笔记正文，不重复节点名，不加 Markdown 标题，不写「这是关于 XX 的笔记」之类的元话术。\n"
+        "- 优先解释**核心定义**或**关键性质**，而不是泛泛而谈。"
+    ),
+}
+
+
+def _format_path(path: List[str]) -> str:
+    """Render a node path as 'A > B > C'."""
+    return " > ".join(p.strip() for p in path if p and p.strip())
+
+
+def _format_siblings(siblings: List[str]) -> str:
+    """Render a list of sibling labels for display in prompts."""
+    cleaned = [s.strip() for s in siblings if s and s.strip()]
+    if not cleaned:
+        return "（无）"
+    return "、".join(cleaned)
+
+
 class RAGEngine:
     """Builds prompts with RAG context for the LLM."""
 
@@ -231,3 +285,73 @@ class RAGEngine:
         messages.append({"role": "user", "content": user_message})
 
         return messages
+
+    def _get_subject_system_prompt(self) -> str:
+        if self.system_prompt:
+            return self.system_prompt
+        return SYSTEM_PROMPTS.get(self.assistant_id, SYSTEM_PROMPTS["data_structures"])
+
+    def build_mindmap_messages(
+        self,
+        op: str,
+        *,
+        topic: Optional[str] = None,
+        path: Optional[List[str]] = None,
+        siblings: Optional[List[str]] = None,
+        depth: Optional[int] = None,
+        width: Optional[int] = None,
+        count: Optional[int] = None,
+    ) -> List[Dict[str, str]]:
+        """Build messages for mind-map AI operations.
+
+        op: 'generate_tree' | 'expand_node' | 'generate_note'
+        """
+        if op not in MINDMAP_OP_PROMPTS:
+            raise ValueError(f"Unknown mind-map op: {op}")
+
+        # --- Derive retrieval query
+        if op == "generate_tree":
+            if not topic:
+                raise ValueError("topic is required for generate_tree")
+            query = topic
+        else:
+            if not path:
+                raise ValueError("path is required for this op")
+            query = _format_path(path)
+
+        results = self.retrieve_context(query)
+        context = self._format_context(results)
+
+        # --- Compose system prompt: subject persona + op instruction
+        subject_prompt = self._get_subject_system_prompt()
+        if op == "generate_tree":
+            op_prompt = MINDMAP_OP_PROMPTS["generate_tree"].format(
+                topic=topic,
+                depth=depth or 2,
+                width=width or 4,
+            )
+        elif op == "expand_node":
+            op_prompt = MINDMAP_OP_PROMPTS["expand_node"].format(
+                path=_format_path(path or []),
+                siblings=_format_siblings(siblings or []),
+                count=count or 4,
+            )
+        else:  # generate_note
+            op_prompt = MINDMAP_OP_PROMPTS["generate_note"].format(
+                path=_format_path(path or []),
+            )
+
+        full_system = subject_prompt + "\n\n---\n" + op_prompt
+
+        user_message = (
+            "以下是从知识库中检索到的相关参考片段：\n\n"
+            f"{context}\n\n"
+            "---\n"
+            "请基于以上参考（若相关）以及你的通用知识，严格按上方"
+            "「严格输出规范」生成内容。"
+        )
+
+        return [
+            {"role": "system", "content": full_system},
+            {"role": "user", "content": user_message},
+        ]

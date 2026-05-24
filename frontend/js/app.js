@@ -10,6 +10,7 @@ class App {
         chatManager.init();
         quizManager.init();
         uploadManager.init();
+        mindmapManager.init();
 
         // Setup event listeners
         this.setupEventListeners();
@@ -190,6 +191,9 @@ class App {
         // Load or create a session for this assistant (most-recent first).
         chatManager.onAssistantSelected(assistant.id);
 
+        // Reset mind-map state so the new assistant starts clean.
+        if (window.mindmapManager) mindmapManager.onAssistantChanged();
+
         // Refresh stats and file list
         this.refreshStats();
         this.refreshFileList();
@@ -198,9 +202,11 @@ class App {
     }
 
     showAssistantSelection() {
+        if (window.mindmapManager) mindmapManager.flushSave();
         document.getElementById('assistantSelectionView').classList.add('active');
         document.getElementById('chatView').classList.remove('active');
         document.getElementById('quizView').classList.remove('active');
+        document.getElementById('mindmapView').classList.remove('active');
     }
 
     async refreshStats() {
@@ -344,7 +350,7 @@ function showToast(message, type = 'info') {
 }
 
 // Initialize app when DOM is ready
-const app = new App();
+const app = window.app = new App();
 document.addEventListener('DOMContentLoaded', () => {
     app.init();
 });

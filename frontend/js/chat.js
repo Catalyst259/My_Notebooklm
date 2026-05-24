@@ -512,9 +512,11 @@ class ChatManager {
     }
 
     showChatView() {
+        if (window.mindmapManager) mindmapManager.flushSave();
         document.getElementById('assistantSelectionView').classList.remove('active');
         document.getElementById('chatView').classList.add('active');
         document.getElementById('quizView').classList.remove('active');
+        document.getElementById('mindmapView').classList.remove('active');
     }
 }
 

@@ -299,6 +299,101 @@ class APIClient {
         }
         return await response.json();
     }
+
+    // --- Mind-maps ---
+
+    async listMindmaps(assistantId) {
+        const response = await fetch(`${this.baseUrl}/api/mindmaps?assistant_id=${assistantId}`);
+        if (!response.ok) throw new Error('Failed to list mindmaps');
+        return await response.json();
+    }
+
+    async createMindmap(assistantId, title) {
+        const formData = new FormData();
+        formData.append('assistant_id', assistantId);
+        if (title) formData.append('title', title);
+        const response = await fetch(`${this.baseUrl}/api/mindmaps`, {
+            method: 'POST',
+            body: formData
+        });
+        if (!response.ok) throw new Error('Failed to create mindmap');
+        return await response.json();
+    }
+
+    async getMindmap(assistantId, mapId) {
+        const response = await fetch(
+            `${this.baseUrl}/api/mindmaps/${mapId}?assistant_id=${assistantId}`
+        );
+        if (!response.ok) throw new Error('Failed to fetch mindmap');
+        return await response.json();
+    }
+
+    async saveMindmap(assistantId, mapId, title, jsmindJson) {
+        const formData = new FormData();
+        formData.append('assistant_id', assistantId);
+        if (title) formData.append('title', title);
+        if (jsmindJson) formData.append('jsmind_json', JSON.stringify(jsmindJson));
+        const response = await fetch(`${this.baseUrl}/api/mindmaps/${mapId}`, {
+            method: 'PUT',
+            body: formData
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: '保存失败' }));
+            throw new Error(error.detail || 'Failed to save mindmap');
+        }
+        return await response.json();
+    }
+
+    async deleteMindmap(assistantId, mapId) {
+        const response = await fetch(
+            `${this.baseUrl}/api/mindmaps/${mapId}?assistant_id=${assistantId}`,
+            { method: 'DELETE' }
+        );
+        if (!response.ok) throw new Error('Failed to delete mindmap');
+        return await response.json();
+    }
+
+    // AI streaming endpoints. Each returns a Response whose body must be consumed via
+    // the shared SSE consumer. Pass an AbortSignal to allow cancellation.
+    streamGenerateTree(apiKey, assistantId, topic, depth, width, signal) {
+        const formData = new FormData();
+        formData.append('api_key', apiKey);
+        formData.append('assistant_id', assistantId);
+        formData.append('topic', topic);
+        formData.append('depth', String(depth || 2));
+        formData.append('width', String(width || 4));
+        return fetch(`${this.baseUrl}/api/mindmaps/ai/generate-tree`, {
+            method: 'POST',
+            body: formData,
+            signal
+        });
+    }
+
+    streamExpandNode(apiKey, assistantId, path, siblings, count, signal) {
+        const formData = new FormData();
+        formData.append('api_key', apiKey);
+        formData.append('assistant_id', assistantId);
+        formData.append('path_json', JSON.stringify(path || []));
+        formData.append('siblings_json', JSON.stringify(siblings || []));
+        formData.append('count', String(count || 4));
+        return fetch(`${this.baseUrl}/api/mindmaps/ai/expand-node`, {
+            method: 'POST',
+            body: formData,
+            signal
+        });
+    }
+
+    streamGenerateNote(apiKey, assistantId, path, signal) {
+        const formData = new FormData();
+        formData.append('api_key', apiKey);
+        formData.append('assistant_id', assistantId);
+        formData.append('path_json', JSON.stringify(path || []));
+        return fetch(`${this.baseUrl}/api/mindmaps/ai/generate-note`, {
+            method: 'POST',
+            body: formData,
+            signal
+        });
+    }
 }
 
 // Export singleton instance

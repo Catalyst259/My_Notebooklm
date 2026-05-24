@@ -21,6 +21,8 @@ from rag_engine import RAGEngine, build_generic_system_prompt
 from quiz_engine import QuizEngine
 from session_store import SessionStore
 from memory_store import MemoryStore
+from mindmap_store import MindMapStore
+from mindmap_engine import MindMapEngine
 
 # --- Paths ---
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -28,11 +30,13 @@ UPLOAD_BASE_DIR = os.path.join(BASE_DIR, 'data', 'uploaded')
 VECTOR_STORE_BASE_DIR = os.path.join(BASE_DIR, 'data', 'vector_store')
 SESSIONS_BASE_DIR = os.path.join(BASE_DIR, 'data', 'sessions')
 MEMORY_BASE_DIR = os.path.join(BASE_DIR, 'data', 'memory')
+MINDMAPS_BASE_DIR = os.path.join(BASE_DIR, 'data', 'mindmaps')
 ASSISTANTS_CONFIG_PATH = os.path.join(BASE_DIR, 'data', 'assistants_config.json')
 os.makedirs(UPLOAD_BASE_DIR, exist_ok=True)
 os.makedirs(VECTOR_STORE_BASE_DIR, exist_ok=True)
 os.makedirs(SESSIONS_BASE_DIR, exist_ok=True)
 os.makedirs(MEMORY_BASE_DIR, exist_ok=True)
+os.makedirs(MINDMAPS_BASE_DIR, exist_ok=True)
 
 # --- Default Assistant Configuration (seed for first run) ---
 _DEFAULT_ASSISTANTS = {
@@ -124,6 +128,13 @@ class AssistantInstance:
             assistant_name=config["name"]
         )
         self.session_store = SessionStore(SESSIONS_BASE_DIR, assistant_id)
+        self.mindmap_store = MindMapStore(MINDMAPS_BASE_DIR, assistant_id)
+        self.mindmap_engine = MindMapEngine(
+            knowledge_base=self.knowledge_base,
+            rag_engine=self.rag_engine,
+            assistant_id=assistant_id,
+            assistant_name=config["name"],
+        )
 
 
 # Shared memory store across assistants (one file per assistant_id).
@@ -573,6 +584,158 @@ async def save_memory(
     return {"message": "备忘已保存", "assistant_id": assistant_id}
 
 
+# --- Mind-Maps --------------------------------------------------------------
+
+@app.get("/api/mindmaps")
+async def list_mindmaps(assistant_id: str = Query("data_structures")):
+    """List all mind-maps for an assistant (newest first)."""
+    assistant = get_assistant(assistant_id)
+    return {"mindmaps": assistant.mindmap_store.list()}
+
+
+@app.post("/api/mindmaps")
+async def create_mindmap(
+    assistant_id: str = Form("data_structures"),
+    title: str = Form("")
+):
+    """Create a new mind-map with a single root node."""
+    assistant = get_assistant(assistant_id)
+    mindmap = assistant.mindmap_store.create(title=title or None)
+    return {"mindmap": mindmap}
+
+
+@app.get("/api/mindmaps/{map_id}")
+async def get_mindmap(
+    map_id: str,
+    assistant_id: str = Query("data_structures")
+):
+    """Fetch a full mind-map by id."""
+    assistant = get_assistant(assistant_id)
+    try:
+        return {"mindmap": assistant.mindmap_store.get(map_id)}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Mind-map not found")
+
+
+@app.put("/api/mindmaps/{map_id}")
+async def save_mindmap(
+    map_id: str,
+    assistant_id: str = Form("data_structures"),
+    title: str = Form(""),
+    jsmind_json: str = Form("")
+):
+    """Overwrite a mind-map's title and/or jsmind blob."""
+    assistant = get_assistant(assistant_id)
+    try:
+        jsmind_data: Optional[Dict[str, Any]] = None
+        if jsmind_json:
+            try:
+                jsmind_data = json.loads(jsmind_json)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=400, detail="Invalid jsmind_json")
+            if not isinstance(jsmind_data, dict):
+                raise HTTPException(status_code=400, detail="jsmind_json must be an object")
+        mindmap = assistant.mindmap_store.save(
+            map_id,
+            title=title if title else None,
+            jsmind_json=jsmind_data,
+        )
+        return {"mindmap": mindmap}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Mind-map not found")
+
+
+@app.delete("/api/mindmaps/{map_id}")
+async def delete_mindmap(
+    map_id: str,
+    assistant_id: str = Query("data_structures")
+):
+    """Delete a mind-map."""
+    assistant = get_assistant(assistant_id)
+    assistant.mindmap_store.delete(map_id)
+    return {"message": "思维导图已删除", "map_id": map_id}
+
+
+# --- Mind-Map AI streaming endpoints ---
+
+def _mindmap_sse_response(generator):
+    return StreamingResponse(
+        generator,
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.post("/api/mindmaps/ai/generate-tree")
+async def mindmap_generate_tree(
+    api_key: str = Form(...),
+    assistant_id: str = Form("data_structures"),
+    topic: str = Form(...),
+    depth: int = Form(2),
+    width: int = Form(4),
+):
+    """Stream a Markdown-bullet mind-map tree for a given topic."""
+    if not api_key:
+        raise HTTPException(status_code=400, detail="API Key is required.")
+    assistant = get_assistant(assistant_id)
+    return _mindmap_sse_response(
+        assistant.mindmap_engine.stream_generate_tree(
+            api_key=api_key, topic=topic, depth=depth, width=width,
+        )
+    )
+
+
+@app.post("/api/mindmaps/ai/expand-node")
+async def mindmap_expand_node(
+    api_key: str = Form(...),
+    assistant_id: str = Form("data_structures"),
+    path_json: str = Form(...),
+    siblings_json: str = Form("[]"),
+    count: int = Form(4),
+):
+    """Stream Markdown-bullet child nodes for the target node identified by path."""
+    if not api_key:
+        raise HTTPException(status_code=400, detail="API Key is required.")
+    assistant = get_assistant(assistant_id)
+    try:
+        path = json.loads(path_json)
+        siblings = json.loads(siblings_json) if siblings_json else []
+        if not isinstance(path, list) or not isinstance(siblings, list):
+            raise ValueError
+    except (json.JSONDecodeError, ValueError):
+        raise HTTPException(status_code=400, detail="path_json/siblings_json must be JSON arrays.")
+    return _mindmap_sse_response(
+        assistant.mindmap_engine.stream_expand_node(
+            api_key=api_key, path=path, siblings=siblings, count=count,
+        )
+    )
+
+
+@app.post("/api/mindmaps/ai/generate-note")
+async def mindmap_generate_note(
+    api_key: str = Form(...),
+    assistant_id: str = Form("data_structures"),
+    path_json: str = Form(...),
+):
+    """Stream a short Markdown note for the target node identified by path."""
+    if not api_key:
+        raise HTTPException(status_code=400, detail="API Key is required.")
+    assistant = get_assistant(assistant_id)
+    try:
+        path = json.loads(path_json)
+        if not isinstance(path, list):
+            raise ValueError
+    except (json.JSONDecodeError, ValueError):
+        raise HTTPException(status_code=400, detail="path_json must be a JSON array.")
+    return _mindmap_sse_response(
+        assistant.mindmap_engine.stream_generate_note(api_key=api_key, path=path)
+    )
+
+
 @app.post("/api/quiz/generate")
 async def generate_quiz(
     api_key: str = Form(...),
@@ -710,6 +873,10 @@ async def delete_assistant(
     sessions_dir = os.path.join(SESSIONS_BASE_DIR, assistant_id)
     if os.path.exists(sessions_dir):
         shutil.rmtree(sessions_dir)
+
+    mindmaps_dir = os.path.join(MINDMAPS_BASE_DIR, assistant_id)
+    if os.path.exists(mindmaps_dir):
+        shutil.rmtree(mindmaps_dir)
 
     memory_store.delete(assistant_id)
 

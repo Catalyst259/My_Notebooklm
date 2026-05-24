@@ -269,9 +269,11 @@ class QuizManager {
     }
 
     showQuizView() {
+        if (window.mindmapManager) mindmapManager.flushSave();
         document.getElementById('assistantSelectionView').classList.remove('active');
         document.getElementById('chatView').classList.remove('active');
         document.getElementById('quizView').classList.add('active');
+        document.getElementById('mindmapView').classList.remove('active');
     }
 }
 
