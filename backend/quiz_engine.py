@@ -59,7 +59,7 @@ class QuizEngine:
         question_types: str = "mixed",
         topic: str = "",
     ) -> Dict[str, Any]:
-        count = max(1, min(count, 10))
+        count = max(1, min(count, 30))
         context, source_files, used_kb = self._retrieve_context(topic)
 
         prompt = f"""
