@@ -9,6 +9,13 @@ class QuizManager {
     init() {
         const generateQuizBtn = document.getElementById('generateQuizBtn');
         generateQuizBtn.addEventListener('click', () => this.showQuizOptions());
+
+        document.getElementById('cancelQuizOptBtn').addEventListener('click', () => {
+            this.hideQuizOptionsModal();
+        });
+        document.getElementById('confirmQuizOptBtn').addEventListener('click', () => {
+            this.submitQuizOptions();
+        });
     }
 
     showQuizOptions() {
@@ -24,15 +31,29 @@ class QuizManager {
             return;
         }
 
-        // Show quiz options dialog
-        const options = {
-            count: 5,
-            difficulty: 'medium',
-            question_types: 'mixed',
-            topic: ''
-        };
+        this._pendingApiKey = apiKey;
+        this._pendingAssistantId = assistantId;
+        document.getElementById('quizOptionsModal').style.display = 'flex';
+    }
 
-        this.generateQuiz(apiKey, assistantId, options);
+    hideQuizOptionsModal() {
+        document.getElementById('quizOptionsModal').style.display = 'none';
+    }
+
+    submitQuizOptions() {
+        const rawCount = parseInt(document.getElementById('quizOptCount').value, 10);
+        const count = Number.isNaN(rawCount) ? 5 : Math.max(1, Math.min(30, rawCount));
+        const difficulty = document.getElementById('quizOptDifficulty').value || 'medium';
+        const question_types = document.getElementById('quizOptType').value || 'mixed';
+        const topic = (document.getElementById('quizOptTopic').value || '').trim();
+
+        this.hideQuizOptionsModal();
+        this.generateQuiz(this._pendingApiKey, this._pendingAssistantId, {
+            count,
+            difficulty,
+            question_types,
+            topic
+        });
     }
 
     async generateQuiz(apiKey, assistantId, options) {
