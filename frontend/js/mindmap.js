@@ -103,8 +103,8 @@ class MindMapManager {
         document.getElementById('chatView').classList.remove('active');
         document.getElementById('quizView').classList.remove('active');
         document.getElementById('mindmapView').classList.add('active');
+        if (window.app) app.setBodyMode('mindmap');
         await this.refreshList();
-        // Auto-open the most recent map if any, otherwise show empty hint.
         if (this.mindmaps.length > 0 && !this.currentMap) {
             await this.openMap(this.mindmaps[0].id);
         } else if (this.currentMap) {
@@ -161,8 +161,12 @@ class MindMapManager {
                     <div class="mindmap-list-item-meta">${m.node_count} 节点 · ${formatRelativeTime(m.updated_at)}</div>
                 </div>
                 <div class="mindmap-list-item-actions">
-                    <button class="btn-icon-xs" data-action="rename" title="重命名">✎</button>
-                    <button class="btn-icon-xs" data-action="delete" title="删除">🗑</button>
+                    <button class="btn-icon-xs" data-action="rename" title="重命名">
+                        <span class="material-symbols-outlined" style="font-size:14px;">edit</span>
+                    </button>
+                    <button class="btn-icon-xs" data-action="delete" title="删除">
+                        <span class="material-symbols-outlined" style="font-size:14px;">delete</span>
+                    </button>
                 </div>
             </div>
         `).join('');
@@ -364,17 +368,20 @@ class MindMapManager {
         menu.style.left = `${x}px`;
         menu.style.top = `${y}px`;
         const items = [
-            { label: '✏ 重命名节点', action: () => this._editNodeTopic(nodeId) },
-            { label: '➕ 添加子节点', action: () => this._addChildNode(nodeId) },
-            { label: '✨ AI 扩展（添加 4 个子节点）', action: () => this.expandNode(nodeId, 4) },
-            { label: '📝 AI 生成笔记', action: () => this.generateNote(nodeId) },
-            { label: '👁 查看/编辑笔记', action: () => this._showNotePanel(nodeId) },
+            { label: '重命名节点', icon: 'edit', action: () => this._editNodeTopic(nodeId) },
+            { label: '添加子节点', icon: 'add', action: () => this._addChildNode(nodeId) },
+            { label: 'AI 扩展（添加 4 个子节点）', icon: 'auto_awesome', action: () => this.expandNode(nodeId, 4) },
+            { label: 'AI 生成笔记', icon: 'edit_note', action: () => this.generateNote(nodeId) },
+            { label: '查看/编辑笔记', icon: 'visibility', action: () => this._showNotePanel(nodeId) },
         ];
         if (!isRoot) {
-            items.push({ label: '🗑 删除子树', action: () => this._deleteNode(nodeId), danger: true });
+            items.push({ label: '删除子树', icon: 'delete', action: () => this._deleteNode(nodeId), danger: true });
         }
         menu.innerHTML = items.map((it, i) => `
-            <div class="mindmap-node-menu-item ${it.danger ? 'danger' : ''}" data-i="${i}">${it.label}</div>
+            <div class="mindmap-node-menu-item ${it.danger ? 'danger' : ''}" data-i="${i}">
+                <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;margin-right:6px;">${it.icon}</span>
+                ${it.label}
+            </div>
         `).join('');
         document.body.appendChild(menu);
         const close = (ev) => {

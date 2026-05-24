@@ -1,4 +1,15 @@
 // Main application logic
+const ASSISTANT_ICONS = {
+    data_structures: 'account_tree',
+    computer_systems: 'developer_board',
+    discrete_math: 'function',
+    machine_learning: 'smart_toy',
+};
+
+function iconForAssistant(assistant) {
+    return ASSISTANT_ICONS[assistant.id] || 'school';
+}
+
 class App {
     constructor() {
         this.assistants = [];
@@ -6,31 +17,33 @@ class App {
     }
 
     async init() {
-        // Initialize managers
         chatManager.init();
         quizManager.init();
         uploadManager.init();
         mindmapManager.init();
 
-        // Setup event listeners
         this.setupEventListeners();
-
-        // Load API key from localStorage
         this.loadApiKey();
-
-        // Load assistants
         await this.loadAssistants();
-
-        // Check backend health
         this.checkBackendHealth();
+
+        this.setBodyMode('selection');
     }
 
     setupEventListeners() {
         // API Key
         document.getElementById('saveApiKeyBtn').addEventListener('click', () => this.saveApiKey());
 
+        // Settings drawer
+        document.getElementById('openSettingsBtn').addEventListener('click', () => this.openSettings());
+        document.getElementById('closeSettingsBtn').addEventListener('click', () => this.closeSettings());
+        document.getElementById('settingsDrawer').addEventListener('click', (e) => {
+            if (e.target.id === 'settingsDrawer') this.closeSettings();
+        });
+
         // Assistant selector
         document.getElementById('changeAssistantBtn').addEventListener('click', () => {
+            this.closeSettings();
             this.showAssistantSelection();
         });
 
@@ -38,11 +51,13 @@ class App {
         document.getElementById('createAssistantBtn').addEventListener('click', () => {
             document.getElementById('createAssistantModal').style.display = 'flex';
         });
-        document.getElementById('cancelCreateBtn').addEventListener('click', () => {
+        const cancelCreate = () => {
             document.getElementById('createAssistantModal').style.display = 'none';
             document.getElementById('newAssistantName').value = '';
             document.getElementById('newAssistantDesc').value = '';
-        });
+        };
+        document.getElementById('cancelCreateBtn').addEventListener('click', cancelCreate);
+        document.getElementById('cancelCreateBtnIcon')?.addEventListener('click', cancelCreate);
         document.getElementById('confirmCreateBtn').addEventListener('click', () => this.createAssistant());
 
         // Stats
@@ -51,33 +66,82 @@ class App {
         // Actions
         document.getElementById('clearHistoryBtn').addEventListener('click', () => this.clearHistory());
         document.getElementById('clearKbBtn').addEventListener('click', () => this.clearKnowledgeBase());
+
+        // Mobile drawer toggles
+        document.getElementById('mobileSourcesBtn')?.addEventListener('click', () => {
+            document.getElementById('sourcesPanel').classList.toggle('open');
+            document.getElementById('studioPanel').classList.remove('open');
+        });
+        document.getElementById('mobileStudioBtn')?.addEventListener('click', () => {
+            document.getElementById('studioPanel').classList.toggle('open');
+            document.getElementById('sourcesPanel').classList.remove('open');
+        });
+        // Close drawers when clicking main panel on mobile
+        document.querySelector('.main-panel')?.addEventListener('click', () => {
+            if (window.innerWidth <= 767) {
+                document.getElementById('sourcesPanel')?.classList.remove('open');
+                document.getElementById('studioPanel')?.classList.remove('open');
+            }
+        });
+    }
+
+    setBodyMode(mode) {
+        // mode: 'selection' | 'chat' | 'quiz' | 'mindmap'
+        const body = document.body;
+        body.classList.remove('is-assistant-selection', 'is-quiz-fullscreen', 'is-chat', 'is-mindmap');
+        if (mode === 'selection') body.classList.add('is-assistant-selection');
+        else if (mode === 'quiz') body.classList.add('is-quiz-fullscreen');
+        else if (mode === 'chat') body.classList.add('is-chat');
+        else if (mode === 'mindmap') body.classList.add('is-mindmap');
+
+        // Switch studio list view (chat sessions vs mindmap list)
+        const sessions = document.getElementById('sessionListContainer');
+        const maps = document.getElementById('mindmapListContainer');
+        if (sessions && maps) {
+            if (mode === 'mindmap') {
+                sessions.hidden = true;
+                maps.hidden = false;
+            } else {
+                sessions.hidden = false;
+                maps.hidden = true;
+            }
+        }
+    }
+
+    openSettings() {
+        document.getElementById('settingsDrawer').style.display = 'flex';
+    }
+    closeSettings() {
+        document.getElementById('settingsDrawer').style.display = 'none';
     }
 
     loadApiKey() {
         const apiKey = localStorage.getItem('deepseek_api_key');
         if (apiKey) {
             document.getElementById('apiKeyInput').value = apiKey;
-            const statusDiv = document.getElementById('apiKeyStatus');
-            statusDiv.textContent = '✓ API 密钥已保存';
-            statusDiv.className = 'status-text success';
+            this._setApiKeyStatus(true);
+        } else {
+            this._setApiKeyStatus(false);
         }
+    }
+
+    _setApiKeyStatus(isSet) {
+        const dot = document.getElementById('apiKeyStatus');
+        if (!dot) return;
+        dot.classList.toggle('is-set', isSet);
+        dot.classList.toggle('is-unset', !isSet);
+        dot.title = isSet ? 'API Key 已配置' : 'API Key 未配置';
     }
 
     saveApiKey() {
         const apiKeyInput = document.getElementById('apiKeyInput');
         const apiKey = apiKeyInput.value.trim();
-
         if (!apiKey) {
             showToast('请输入 API 密钥', 'error');
             return;
         }
-
         localStorage.setItem('deepseek_api_key', apiKey);
-
-        const statusDiv = document.getElementById('apiKeyStatus');
-        statusDiv.textContent = '✓ API 密钥已保存';
-        statusDiv.className = 'status-text success';
-
+        this._setApiKeyStatus(true);
         showToast('API 密钥已保存', 'success');
     }
 
@@ -99,13 +163,17 @@ class App {
         this.assistants.forEach(assistant => {
             const card = document.createElement('div');
             card.className = 'assistant-card';
-            card.style.borderColor = assistant.color;
 
+            const iconName = iconForAssistant(assistant);
             card.innerHTML = `
-                <button class="card-delete-btn" title="删除助手">&times;</button>
-                <div class="icon">${assistant.icon}</div>
-                <div class="name">${assistant.name}</div>
-                <div class="description">${assistant.description}</div>
+                <button class="card-delete-btn" title="删除助手">
+                    <span class="material-symbols-outlined" style="font-size:16px;">close</span>
+                </button>
+                <div class="badge" style="background:${assistant.color};">
+                    <span class="material-symbols-outlined">${iconName}</span>
+                </div>
+                <div class="name">${escapeText(assistant.name)}</div>
+                <div class="description">${escapeText(assistant.description)}</div>
             `;
 
             card.addEventListener('click', () => this.selectAssistant(assistant));
@@ -122,15 +190,8 @@ class App {
         const descInput = document.getElementById('newAssistantDesc');
         const name = nameInput.value.trim();
         const description = descInput.value.trim();
-
-        if (!name) {
-            showToast('请输入助手名称', 'error');
-            return;
-        }
-        if (!description) {
-            showToast('请输入助手描述', 'error');
-            return;
-        }
+        if (!name) { showToast('请输入助手名称', 'error'); return; }
+        if (!description) { showToast('请输入助手描述', 'error'); return; }
 
         try {
             await api.createAssistant(name, description);
@@ -153,8 +214,6 @@ class App {
             if (this.currentAssistant && this.currentAssistant.id === assistant.id) {
                 this.currentAssistant = null;
                 document.getElementById('assistantSelectorSection').style.display = 'none';
-                document.getElementById('uploadSection').style.display = 'none';
-                document.getElementById('statsSection').style.display = 'none';
                 document.getElementById('actionsSection').style.display = 'none';
                 this.showAssistantSelection();
             }
@@ -169,32 +228,41 @@ class App {
     selectAssistant(assistant) {
         this.currentAssistant = assistant;
 
-        // Update current assistant display
+        // Header current
+        const headerCurrent = document.getElementById('headerCurrent');
+        if (headerCurrent) {
+            headerCurrent.innerHTML = `
+                <span class="brand-dot" style="background:${assistant.color};"></span>
+                <span>${escapeText(assistant.name)}</span>
+            `;
+        }
+
+        // Settings drawer "current assistant" content
         const currentAssistantDiv = document.getElementById('currentAssistant');
-        currentAssistantDiv.innerHTML = `
-            <div class="name" style="color: ${assistant.color};">
-                ${assistant.icon} ${assistant.name}
-            </div>
-            <div class="desc">${assistant.description}</div>
-        `;
+        if (currentAssistantDiv) {
+            const iconName = iconForAssistant(assistant);
+            currentAssistantDiv.innerHTML = `
+                <div class="name">
+                    <span class="material-symbols-outlined" style="color:${assistant.color};">${iconName}</span>
+                    <span>${escapeText(assistant.name)}</span>
+                </div>
+                <div class="desc">${escapeText(assistant.description)}</div>
+            `;
+        }
 
-        // Show sidebar sections
-        document.getElementById('assistantSelectorSection').style.display = 'block';
-        document.getElementById('uploadSection').style.display = 'block';
-        document.getElementById('fileListSection').style.display = 'block';
-        document.getElementById('statsSection').style.display = 'block';
-        document.getElementById('actionsSection').style.display = 'block';
+        // Show drawer sections that require an assistant
+        document.getElementById('assistantSelectorSection').style.display = 'flex';
+        document.getElementById('actionsSection').style.display = 'flex';
 
-        // Switch to chat view
+        // Set brand color on chat assistant avatars (CSS var on chat container)
+        const chatView = document.getElementById('chatView');
+        if (chatView) chatView.style.setProperty('--brand-color', assistant.color);
+
         chatManager.showChatView();
-
-        // Load or create a session for this assistant (most-recent first).
         chatManager.onAssistantSelected(assistant.id);
 
-        // Reset mind-map state so the new assistant starts clean.
         if (window.mindmapManager) mindmapManager.onAssistantChanged();
 
-        // Refresh stats and file list
         this.refreshStats();
         this.refreshFileList();
 
@@ -207,19 +275,20 @@ class App {
         document.getElementById('chatView').classList.remove('active');
         document.getElementById('quizView').classList.remove('active');
         document.getElementById('mindmapView').classList.remove('active');
+        this.setBodyMode('selection');
+        const headerCurrent = document.getElementById('headerCurrent');
+        if (headerCurrent) headerCurrent.innerHTML = '';
     }
 
     async refreshStats() {
         if (!this.currentAssistant) return;
-
         try {
             const stats = await api.getStats(this.currentAssistant.id);
             const statsDiv = document.getElementById('kbStats');
-
             statsDiv.innerHTML = `
-                <div><strong>文本块数:</strong> ${stats.total_chunks}</div>
-                <div><strong>文件数:</strong> ${stats.total_files}</div>
-                <div><strong>索引大小:</strong> ${this.formatBytes(stats.index_size)}</div>
+                <div><strong>文本块:</strong> ${stats.total_chunks}</div>
+                <div><strong>文件:</strong> ${stats.total_files}</div>
+                <div><strong>索引:</strong> ${this.formatBytes(stats.index_size)}</div>
             `;
         } catch (error) {
             console.error('Failed to refresh stats:', error);
@@ -236,13 +305,12 @@ class App {
 
     async refreshFileList() {
         if (!this.currentAssistant) return;
-
         try {
             const data = await api.getFiles(this.currentAssistant.id);
             const fileListDiv = document.getElementById('fileList');
 
             if (data.files.length === 0) {
-                fileListDiv.innerHTML = '<p style="color: #666; font-size: 0.9em;">暂无文件</p>';
+                fileListDiv.innerHTML = '<p style="color: var(--text-mute); font-size: var(--fs-xs); padding: var(--sp-2) 0;">暂无文件</p>';
                 return;
             }
 
@@ -256,12 +324,14 @@ class App {
 
                 item.innerHTML = `
                     <div class="file-info">
-                        <div class="file-name">${file.original_name}</div>
+                        <div class="file-name">${escapeText(file.original_name)}</div>
                         <div class="file-meta">
                             ${file.chunk_count} 块 · ${fileSize} · ${uploadDate}
                         </div>
                     </div>
-                    <button class="file-delete-btn" data-uuid="${file.file_uuid}">删除</button>
+                    <button class="file-delete-btn" data-uuid="${file.file_uuid}" title="删除">
+                        <span class="material-symbols-outlined" style="font-size:16px;">delete</span>
+                    </button>
                 `;
 
                 item.querySelector('.file-delete-btn').addEventListener('click', () => {
@@ -277,7 +347,6 @@ class App {
 
     async deleteFile(file) {
         if (!confirm(`确定要删除「${file.original_name}」吗？此操作不可恢复！`)) return;
-
         try {
             await api.deleteFile(file.file_uuid, this.currentAssistant.id);
             await this.refreshStats();
@@ -291,11 +360,8 @@ class App {
 
     async clearHistory() {
         if (!this.currentAssistant) return;
-
         if (!confirm('确定要清空当前对话吗？')) return;
-
         try {
-            // New flow: delete the current session and start fresh.
             if (chatManager.currentSessionId) {
                 await api.deleteSession(chatManager.currentSessionId, this.currentAssistant.id);
             }
@@ -303,6 +369,7 @@ class App {
             chatManager.currentSessionId = null;
             chatManager.clearMessages();
             chatManager.updateSessionTitle('新对话');
+            this.closeSettings();
             showToast('对话已清空', 'success');
         } catch (error) {
             console.error('Failed to clear history:', error);
@@ -312,13 +379,12 @@ class App {
 
     async clearKnowledgeBase() {
         if (!this.currentAssistant) return;
-
         if (!confirm('确定要清空知识库吗？此操作不可恢复！')) return;
-
         try {
             await api.clearKnowledgeBase(this.currentAssistant.id);
             await this.refreshStats();
             chatManager.addMessage('system', '知识库已清空');
+            this.closeSettings();
             showToast('知识库已清空', 'success');
         } catch (error) {
             console.error('Failed to clear knowledge base:', error);
@@ -337,20 +403,18 @@ class App {
     }
 }
 
-// Toast notification helper
+function escapeText(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[c]);
+}
+
 function showToast(message, type = 'info') {
     const toast = document.getElementById('toast');
     toast.textContent = message;
     toast.className = 'toast show';
-
-    // Auto hide after 3 seconds
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, 3000);
+    setTimeout(() => { toast.classList.remove('show'); }, 3000);
 }
 
-// Initialize app when DOM is ready
 const app = window.app = new App();
-document.addEventListener('DOMContentLoaded', () => {
-    app.init();
-});
+document.addEventListener('DOMContentLoaded', () => { app.init(); });

@@ -2,7 +2,7 @@
 class ChatManager {
     constructor() {
         this.currentSessionId = null;
-        this.messages = []; // current session's messages, mirrored from the server
+        this.messages = [];
         this.isStreaming = false;
     }
 
@@ -17,12 +17,19 @@ class ChatManager {
                 this.sendMessage();
             }
         });
+        // Auto-resize textarea
+        chatInput.addEventListener('input', () => this._autoresize(chatInput));
 
         document.getElementById('newSessionBtn').addEventListener('click', () => this.newSession());
         document.getElementById('exportSessionBtn').addEventListener('click', () => this.exportSession());
         document.getElementById('memoryBtn').addEventListener('click', () => this.openMemoryModal());
         document.getElementById('cancelMemoryBtn').addEventListener('click', () => this.closeMemoryModal());
         document.getElementById('saveMemoryBtn').addEventListener('click', () => this.saveMemory());
+    }
+
+    _autoresize(el) {
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 200) + 'px';
     }
 
     // --- Assistant switch hook ---------------------------------------------
@@ -56,6 +63,7 @@ class ChatManager {
 
     renderSessionList() {
         const container = document.getElementById('sessionList');
+        if (!container) return;
         container.innerHTML = '';
         const sessions = this._lastSessions || [];
         if (sessions.length === 0) {
@@ -82,7 +90,7 @@ class ChatManager {
             const renameBtn = document.createElement('button');
             renameBtn.className = 'session-action-btn';
             renameBtn.title = '重命名';
-            renameBtn.textContent = '✎';
+            renameBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;">edit</span>';
             renameBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.renameSession(s);
@@ -91,7 +99,7 @@ class ChatManager {
             const delBtn = document.createElement('button');
             delBtn.className = 'session-action-btn danger';
             delBtn.title = '删除对话';
-            delBtn.textContent = '✕';
+            delBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;">close</span>';
             delBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.deleteSession(s);
@@ -138,7 +146,7 @@ class ChatManager {
             this.messages = data.session.messages || [];
             this.renderMessages();
             this.updateSessionTitle(data.session.title);
-            this.renderSessionList(); // re-highlight active
+            this.renderSessionList();
         } catch (e) {
             console.error(e);
             showToast('加载对话失败', 'error');
@@ -171,7 +179,6 @@ class ChatManager {
                 this.updateSessionTitle('新对话');
             }
             await this.refreshSessions();
-            // If we just nuked the active one, auto-load the next most-recent.
             if (!this.currentSessionId && this._lastSessions && this._lastSessions.length > 0) {
                 await this.loadSession(this._lastSessions[0].id);
             }
@@ -206,7 +213,6 @@ class ChatManager {
         body.innerHTML = this.formatMessage(message.content || '');
         wrap.appendChild(body);
 
-        // Action buttons (visible on hover via CSS) — system messages get nothing.
         if (message.role === 'user' || message.role === 'assistant') {
             const actions = document.createElement('div');
             actions.className = 'message-actions';
@@ -214,11 +220,10 @@ class ChatManager {
             const delBtn = document.createElement('button');
             delBtn.className = 'msg-action-btn';
             delBtn.title = '删除该轮对话';
-            delBtn.textContent = '✕';
+            delBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">close</span>';
             delBtn.addEventListener('click', () => this.deleteMessage(index));
             actions.appendChild(delBtn);
 
-            // Regenerate only on the *last* assistant message
             const isLastAssistant = (
                 message.role === 'assistant' &&
                 index === this.messages.length - 1
@@ -227,7 +232,7 @@ class ChatManager {
                 const regenBtn = document.createElement('button');
                 regenBtn.className = 'msg-action-btn';
                 regenBtn.title = '重新生成回答';
-                regenBtn.textContent = '↻';
+                regenBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">refresh</span>';
                 regenBtn.addEventListener('click', () => this.regenerate());
                 actions.appendChild(regenBtn);
             }
@@ -240,8 +245,6 @@ class ChatManager {
     }
 
     addStreamingMessage(role) {
-        // Used during streaming — the streamed message is not yet in this.messages
-        // (it gets added on completion via session reload).
         const container = document.getElementById('chatMessages');
         const wrap = document.createElement('div');
         wrap.className = `message ${role} streaming`;
@@ -269,10 +272,8 @@ class ChatManager {
         container.scrollTop = container.scrollHeight;
     }
 
-    // Compat shim: older code paths (app.js welcome message) still call this.
     addMessage(role, content) {
         if (role === 'system') return this.addSystemMessage(content);
-        // Append to current view only; persistent storage happens server-side on chat.
         this.messages.push({ role, content });
         return this.renderMessage({ role, content }, this.messages.length - 1);
     }
@@ -292,7 +293,7 @@ class ChatManager {
 
         const apiKey = localStorage.getItem('deepseek_api_key');
         if (!apiKey) {
-            showToast('请先保存 API 密钥', 'error');
+            showToast('请先在设置中保存 API 密钥', 'error');
             return;
         }
 
@@ -303,15 +304,14 @@ class ChatManager {
         }
 
         chatInput.value = '';
+        this._autoresize(chatInput);
 
-        // Optimistically render the user turn; the server will persist it.
         this.messages.push({ role: 'user', content: message });
         this.renderMessages();
 
         this.isStreaming = true;
         const sendBtn = document.getElementById('sendBtn');
         sendBtn.disabled = true;
-        sendBtn.textContent = '回复中...';
 
         try {
             const response = await api.createChatStream(
@@ -327,7 +327,6 @@ class ChatManager {
         } finally {
             this.isStreaming = false;
             sendBtn.disabled = false;
-            sendBtn.textContent = '发送';
         }
     }
 
@@ -343,7 +342,7 @@ class ChatManager {
             if (done) break;
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
-            buffer = lines.pop() || ''; // keep partial line
+            buffer = lines.pop() || '';
 
             for (const line of lines) {
                 if (!line.startsWith('data: ')) continue;
@@ -362,7 +361,6 @@ class ChatManager {
                     this.updateStreamingMessage(messageElement, assistantMessage);
                 }
                 if (data.done) {
-                    // Reload from server to get the authoritative message list with timestamps.
                     if (this.currentSessionId) {
                         try {
                             const sess = await api.getSession(this.currentSessionId, app.currentAssistant.id);
@@ -403,7 +401,6 @@ class ChatManager {
             return;
         }
 
-        // Drop the last assistant message visually; the server pops it too.
         if (this.messages.length && this.messages[this.messages.length - 1].role === 'assistant') {
             this.messages.pop();
             this.renderMessages();
@@ -412,7 +409,6 @@ class ChatManager {
         this.isStreaming = true;
         const sendBtn = document.getElementById('sendBtn');
         sendBtn.disabled = true;
-        sendBtn.textContent = '重新生成...';
         try {
             const response = await api.regenerateLast(
                 this.currentSessionId, apiKey, app.currentAssistant.id
@@ -430,7 +426,6 @@ class ChatManager {
         } finally {
             this.isStreaming = false;
             sendBtn.disabled = false;
-            sendBtn.textContent = '发送';
         }
     }
 
@@ -443,7 +438,7 @@ class ChatManager {
         const title = document.getElementById('currentSessionTitle').textContent || '对话';
         const lines = [`# ${title}`, ``, `> 助手：${assistantName}`, ``];
         this.messages.forEach(m => {
-            const tag = m.role === 'user' ? '🧑 我' : (m.role === 'assistant' ? '🤖 助手' : 'ℹ 系统');
+            const tag = m.role === 'user' ? '我' : (m.role === 'assistant' ? '助手' : '系统');
             lines.push(`## ${tag}`, '', m.content || '', '');
         });
         const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
@@ -517,8 +512,8 @@ class ChatManager {
         document.getElementById('chatView').classList.add('active');
         document.getElementById('quizView').classList.remove('active');
         document.getElementById('mindmapView').classList.remove('active');
+        if (window.app) app.setBodyMode('chat');
     }
 }
 
-// Export singleton instance
 const chatManager = new ChatManager();

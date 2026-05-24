@@ -90,9 +90,11 @@ class UploadManager {
             result.results.forEach(r => {
                 const item = document.createElement('div');
                 item.className = `progress-item ${r.success ? 'success' : 'error'}`;
-                item.textContent = r.success
-                    ? `✓ ${r.file_name} (${r.chunk_count} 块)`
-                    : `✗ ${r.file_name}: ${r.error}`;
+                const iconName = r.success ? 'check_circle' : 'error';
+                const text = r.success
+                    ? `${r.file_name} (${r.chunk_count} 块)`
+                    : `${r.file_name}: ${r.error}`;
+                item.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px;">${iconName}</span>${text}`;
                 uploadProgress.appendChild(item);
 
                 if (r.success) successCount++;
@@ -114,7 +116,7 @@ class UploadManager {
             showToast(`上传完成: ${successCount}/${result.results.length}`, 'success');
         } catch (error) {
             console.error('Upload error:', error);
-            uploadStatus.textContent = `✗ 上传失败: ${error.message}`;
+            uploadStatus.textContent = `上传失败: ${error.message}`;
             uploadStatus.className = 'status-text error';
             showToast('文件上传失败', 'error');
         } finally {

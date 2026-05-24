@@ -4,175 +4,250 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>多学科学习助手</title>
-    <link rel="stylesheet" href="css/styles.css?v=5">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css?v=8">
     <link rel="stylesheet" href="js/vendor/jsmind.css">
 </head>
-<body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <h1>📚 多学科学习助手</h1>
-            <p class="subtitle">基于 RAG 的智能学习平台</p>
-        </header>
+<body class="theme-dark is-assistant-selection">
+    <!-- Mobile drawer toggles -->
+    <button id="mobileSourcesBtn" class="mobile-drawer-toggle mobile-drawer-toggle--left" title="资料">
+        <span class="material-symbols-outlined">folder</span>
+    </button>
+    <button id="mobileStudioBtn" class="mobile-drawer-toggle mobile-drawer-toggle--right" title="工作室">
+        <span class="material-symbols-outlined">widgets</span>
+    </button>
 
-        <!-- Main Layout -->
-        <div class="main-layout">
-            <!-- Left Sidebar -->
-            <aside class="sidebar">
-                <!-- API Key Section -->
-                <div class="section">
-                    <h3>🔑 API 密钥</h3>
-                    <input type="password" id="apiKeyInput" placeholder="输入 DeepSeek API Key">
-                    <button id="saveApiKeyBtn" class="btn btn-primary">保存密钥</button>
-                    <div id="apiKeyStatus" class="status-text"></div>
-                </div>
+    <!-- Header -->
+    <header class="app-header">
+        <div class="app-header__brand">
+            <span class="material-symbols-outlined brand-icon">school</span>
+            <span class="brand-text">学习助手</span>
+        </div>
+        <div class="app-header__current" id="headerCurrent" aria-live="polite"></div>
+        <div class="app-header__actions">
+            <span id="apiKeyStatus" class="api-key-dot is-unset" title="API Key 未配置"></span>
+            <button id="openSettingsBtn" class="icon-btn" title="设置">
+                <span class="material-symbols-outlined">settings</span>
+            </button>
+        </div>
+    </header>
 
-                <!-- Assistant Selector -->
-                <div class="section" id="assistantSelectorSection" style="display: none;">
-                    <h3>🎯 当前助手</h3>
-                    <div id="currentAssistant" class="current-assistant"></div>
-                    <button id="changeAssistantBtn" class="btn btn-secondary">切换助手</button>
-                </div>
-
-                <!-- File Upload -->
-                <div class="section" id="uploadSection" style="display: none;">
-                    <h3>📤 上传资料</h3>
+    <!-- App shell: Sources | Main | Studio -->
+    <main class="app-shell">
+        <!-- Sources Panel (left) -->
+        <aside class="sources-panel" id="sourcesPanel">
+            <div class="panel-header">
+                <span class="material-symbols-outlined panel-header__icon">folder_open</span>
+                <span>资料</span>
+            </div>
+            <div class="panel-body">
+                <section class="panel-section" id="uploadSection">
+                    <h3 class="panel-section__title">上传资料</h3>
                     <div class="upload-zone" id="uploadZone">
                         <input type="file" id="fileInput" accept=".cpp,.h,.txt,.md,.pdf,.docx,.py,.c,.hpp" multiple style="display: none;">
-                        <p>点击选择文件或拖拽到此处</p>
-                        <p class="upload-hint">支持多文件上传</p>
+                        <span class="material-symbols-outlined upload-zone__icon">upload_file</span>
+                        <p class="upload-zone__primary">点击或拖拽文件</p>
+                        <p class="upload-zone__hint">支持多文件，最大 50MB</p>
                     </div>
-                    <button id="uploadBtn" class="btn btn-primary">上传文件</button>
+                    <button id="uploadBtn" class="btn btn-primary btn-full">上传文件</button>
                     <div id="uploadStatus" class="status-text"></div>
                     <div id="uploadProgress" class="upload-progress" style="display: none;"></div>
-                </div>
+                </section>
 
-                <!-- File List -->
-                <div class="section" id="fileListSection" style="display: none;">
-                    <h3>📁 已上传文件</h3>
+                <section class="panel-section" id="fileListSection">
+                    <h3 class="panel-section__title">已上传文件</h3>
                     <div id="fileList" class="file-list"></div>
-                </div>
+                </section>
 
-                <!-- Knowledge Base Stats -->
-                <div class="section" id="statsSection" style="display: none;">
-                    <h3>📊 知识库统计</h3>
+                <section class="panel-section" id="statsSection">
+                    <h3 class="panel-section__title">知识库统计</h3>
                     <div id="kbStats" class="stats-display"></div>
-                    <button id="refreshStatsBtn" class="btn btn-secondary">刷新</button>
-                </div>
+                    <button id="refreshStatsBtn" class="btn btn-secondary btn-sm">刷新</button>
+                </section>
+            </div>
+        </aside>
 
-                <!-- Actions -->
-                <div class="section" id="actionsSection" style="display: none;">
-                    <h3>⚙️ 操作</h3>
-                    <button id="clearHistoryBtn" class="btn btn-warning">清空对话</button>
-                    <button id="clearKbBtn" class="btn btn-danger">清空知识库</button>
-                    <button id="generateQuizBtn" class="btn btn-success">生成测验</button>
-                    <button id="openMindmapBtn" class="btn btn-secondary">🧠 思维导图</button>
-                </div>
-            </aside>
-
-            <!-- Main Content Area -->
-            <main class="content">
-                <!-- Assistant Selection View -->
-                <div id="assistantSelectionView" class="view active">
-                    <div class="view-header">
-                        <h2>选择学习助手</h2>
-                        <button id="createAssistantBtn" class="btn-icon" title="创建新助手">+</button>
+        <!-- Main Panel (center) -->
+        <section class="main-panel">
+            <!-- Assistant Selection View -->
+            <div id="assistantSelectionView" class="view active">
+                <div class="selection-container">
+                    <div class="selection-header">
+                        <h1 class="selection-title">选择学习助手</h1>
+                        <p class="selection-subtitle">挑一个学科开始今天的学习</p>
                     </div>
                     <div id="assistantCards" class="assistant-cards"></div>
+                    <button id="createAssistantBtn" class="btn btn-secondary create-assistant-btn">
+                        <span class="material-symbols-outlined">add</span>
+                        <span>创建新助手</span>
+                    </button>
                 </div>
+            </div>
 
-                <!-- Chat View -->
-                <div id="chatView" class="view">
-                    <div class="chat-layout">
-                        <aside class="session-sidebar">
-                            <div class="session-sidebar-header">
-                                <span>对话</span>
-                                <button id="newSessionBtn" class="btn-icon-sm" title="新建对话">+</button>
-                            </div>
-                            <div id="sessionList" class="session-list"></div>
-                        </aside>
-                        <div class="chat-main">
-                            <div class="chat-toolbar">
-                                <span id="currentSessionTitle" class="current-session-title">新对话</span>
-                                <div class="chat-toolbar-actions">
-                                    <button id="memoryBtn" class="btn btn-secondary btn-sm" title="编辑长期备忘">📝 备忘</button>
-                                    <button id="exportSessionBtn" class="btn btn-secondary btn-sm" title="导出当前对话">⬇ 导出</button>
-                                </div>
-                            </div>
-                            <div id="chatMessages" class="chat-messages"></div>
-                            <div class="chat-input-container">
-                                <textarea id="chatInput" placeholder="输入你的问题..." rows="3"></textarea>
-                                <button id="sendBtn" class="btn btn-primary">发送</button>
-                            </div>
-                        </div>
+            <!-- Chat View -->
+            <div id="chatView" class="view">
+                <div class="chat-toolbar">
+                    <span id="currentSessionTitle" class="current-session-title">新对话</span>
+                    <div class="chat-toolbar-actions">
+                        <button id="exportSessionBtn" class="icon-btn" title="导出对话">
+                            <span class="material-symbols-outlined">download</span>
+                        </button>
                     </div>
                 </div>
-
-                <!-- Quiz View -->
-                <div id="quizView" class="view">
-                    <div id="quizContainer"></div>
-                </div>
-
-                <!-- Mind-Map View -->
-                <div id="mindmapView" class="view">
-                    <div class="mindmap-layout">
-                        <aside class="mindmap-sidebar">
-                            <div class="mindmap-sidebar-header">
-                                <span>思维导图</span>
-                                <div class="mindmap-sidebar-actions">
-                                    <button id="newBlankMindmapBtn" class="btn-icon-sm" title="新建空白">+</button>
-                                    <button id="newAiMindmapBtn" class="btn-icon-sm" title="AI 生成">✨</button>
-                                </div>
-                            </div>
-                            <div id="mindmapList" class="mindmap-list"></div>
-                        </aside>
-                        <div class="mindmap-main">
-                            <div class="mindmap-toolbar">
-                                <span id="currentMindmapTitle" class="current-mindmap-title">未选择</span>
-                                <div class="mindmap-toolbar-actions">
-                                    <span id="mindmapSaveStatus" class="mindmap-save-status"></span>
-                                    <span id="mindmapAiStatus" class="mindmap-ai-status" style="display:none;">
-                                        <span class="ai-status-text">AI 正在生成…</span>
-                                        <button id="mindmapCancelAiBtn" class="btn btn-warning btn-sm">取消</button>
-                                    </span>
-                                    <button id="mindmapCopyBtn" class="btn btn-secondary btn-sm" title="复制为 Markdown">📝 复制</button>
-                                    <button id="mindmapExportBtn" class="btn btn-secondary btn-sm" title="导出 Markdown 文件">⬇ 导出</button>
-                                </div>
-                            </div>
-                            <div id="mindmapEmptyHint" class="mindmap-empty-hint">
-                                <p>用思维导图整理你正在学习的概念。</p>
-                                <p>AI 可以帮你生成初始结构、扩展节点、补充笔记。</p>
-                                <div class="mindmap-empty-actions">
-                                    <button id="emptyNewBlankBtn" class="btn btn-secondary">+ 空白思维导图</button>
-                                    <button id="emptyNewAiBtn" class="btn btn-primary">+ AI 生成思维导图</button>
-                                </div>
-                            </div>
-                            <div id="mindmapCanvas" class="mindmap-canvas"></div>
-                            <div id="mindmapNotePanel" class="mindmap-note-panel" style="display:none;">
-                                <div class="mindmap-note-header">
-                                    <span id="mindmapNoteTitle">节点笔记</span>
-                                    <button id="mindmapNoteCloseBtn" class="btn-icon-sm" title="关闭">×</button>
-                                </div>
-                                <div id="mindmapNoteBody" class="mindmap-note-body"></div>
-                                <div class="mindmap-note-actions">
-                                    <button id="mindmapNoteAiBtn" class="btn btn-secondary btn-sm">AI 生成笔记</button>
-                                    <button id="mindmapNoteEditBtn" class="btn btn-secondary btn-sm">编辑</button>
-                                </div>
-                            </div>
-                        </div>
+                <div id="chatMessages" class="chat-messages"></div>
+                <div class="chat-input-wrap">
+                    <div class="chat-input-card">
+                        <textarea id="chatInput" placeholder="输入你的问题..." rows="1"></textarea>
+                        <button id="sendBtn" class="send-btn" title="发送">
+                            <span class="material-symbols-outlined">arrow_upward</span>
+                        </button>
                     </div>
                 </div>
-            </main>
-        </div>
-    </div>
+            </div>
+
+            <!-- Quiz View -->
+            <div id="quizView" class="view">
+                <div id="quizContainer" class="quiz-container"></div>
+            </div>
+
+            <!-- Mind-Map View -->
+            <div id="mindmapView" class="view">
+                <div class="mindmap-toolbar">
+                    <span id="currentMindmapTitle" class="current-mindmap-title">未选择</span>
+                    <div class="mindmap-toolbar-actions">
+                        <span id="mindmapSaveStatus" class="mindmap-save-status"></span>
+                        <span id="mindmapAiStatus" class="mindmap-ai-status" style="display:none;">
+                            <span class="ai-status-text">AI 正在生成…</span>
+                            <button id="mindmapCancelAiBtn" class="btn btn-danger btn-sm">取消</button>
+                        </span>
+                        <button id="mindmapCopyBtn" class="icon-btn" title="复制为 Markdown">
+                            <span class="material-symbols-outlined">content_copy</span>
+                        </button>
+                        <button id="mindmapExportBtn" class="icon-btn" title="导出 Markdown">
+                            <span class="material-symbols-outlined">download</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="mindmapEmptyHint" class="mindmap-empty-hint">
+                    <span class="material-symbols-outlined mindmap-empty-icon">account_tree</span>
+                    <p>用思维导图整理你正在学习的概念。</p>
+                    <p class="mindmap-empty-sub">AI 可以帮你生成初始结构、扩展节点、补充笔记。</p>
+                    <div class="mindmap-empty-actions">
+                        <button id="emptyNewBlankBtn" class="btn btn-secondary">空白思维导图</button>
+                        <button id="emptyNewAiBtn" class="btn btn-primary">AI 生成思维导图</button>
+                    </div>
+                </div>
+                <div id="mindmapCanvas" class="mindmap-canvas"></div>
+                <div id="mindmapNotePanel" class="mindmap-note-panel" style="display:none;">
+                    <div class="mindmap-note-header">
+                        <span id="mindmapNoteTitle">节点笔记</span>
+                        <button id="mindmapNoteCloseBtn" class="icon-btn" title="关闭">
+                            <span class="material-symbols-outlined">close</span>
+                        </button>
+                    </div>
+                    <div id="mindmapNoteBody" class="mindmap-note-body"></div>
+                    <div class="mindmap-note-actions">
+                        <button id="mindmapNoteAiBtn" class="btn btn-secondary btn-sm">AI 生成笔记</button>
+                        <button id="mindmapNoteEditBtn" class="btn btn-secondary btn-sm">编辑</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Studio Panel (right) -->
+        <aside class="studio-panel" id="studioPanel">
+            <div class="panel-header">
+                <span class="material-symbols-outlined panel-header__icon">widgets</span>
+                <span>工作室</span>
+            </div>
+            <div class="panel-body">
+                <div class="studio-tools">
+                    <button id="generateQuizBtn" class="tool-btn">
+                        <span class="material-symbols-outlined">quiz</span>
+                        <span class="tool-btn__label">生成测验</span>
+                    </button>
+                    <button id="openMindmapBtn" class="tool-btn">
+                        <span class="material-symbols-outlined">account_tree</span>
+                        <span class="tool-btn__label">思维导图</span>
+                    </button>
+                    <button id="memoryBtn" class="tool-btn">
+                        <span class="material-symbols-outlined">edit_note</span>
+                        <span class="tool-btn__label">长期备忘</span>
+                    </button>
+                </div>
+
+                <div class="studio-list">
+                    <div id="sessionListContainer" class="list-container" data-view="chat">
+                        <div class="list-header">
+                            <span class="list-header__title">对话</span>
+                            <button id="newSessionBtn" class="icon-btn icon-btn--sm" title="新建对话">
+                                <span class="material-symbols-outlined">add</span>
+                            </button>
+                        </div>
+                        <div id="sessionList" class="session-list"></div>
+                    </div>
+
+                    <div id="mindmapListContainer" class="list-container" data-view="mindmap" hidden>
+                        <div class="list-header">
+                            <span class="list-header__title">思维导图</span>
+                            <div class="list-header__actions">
+                                <button id="newBlankMindmapBtn" class="icon-btn icon-btn--sm" title="新建空白">
+                                    <span class="material-symbols-outlined">add</span>
+                                </button>
+                                <button id="newAiMindmapBtn" class="icon-btn icon-btn--sm" title="AI 生成">
+                                    <span class="material-symbols-outlined">auto_awesome</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="mindmapList" class="mindmap-list"></div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
 
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
+    <!-- Settings Drawer -->
+    <div id="settingsDrawer" class="modal-overlay" style="display:none;">
+        <div class="modal modal--drawer">
+            <div class="modal-header">
+                <h3>设置</h3>
+                <button id="closeSettingsBtn" class="icon-btn" title="关闭">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <section class="modal-section">
+                <label class="modal-label">DeepSeek API Key</label>
+                <input type="password" id="apiKeyInput" placeholder="输入 DeepSeek API Key">
+                <button id="saveApiKeyBtn" class="btn btn-primary btn-full">保存密钥</button>
+            </section>
+            <section class="modal-section" id="assistantSelectorSection" style="display:none;">
+                <label class="modal-label">当前助手</label>
+                <div id="currentAssistant" class="current-assistant"></div>
+                <button id="changeAssistantBtn" class="btn btn-secondary btn-full">切换助手</button>
+            </section>
+            <section class="modal-section" id="actionsSection" style="display:none;">
+                <label class="modal-label">数据管理</label>
+                <button id="clearHistoryBtn" class="btn btn-danger btn-full">清空当前对话</button>
+                <button id="clearKbBtn" class="btn btn-danger btn-full">清空知识库</button>
+            </section>
+        </div>
+    </div>
+
     <!-- Create Assistant Modal -->
     <div id="createAssistantModal" class="modal-overlay" style="display:none;">
         <div class="modal">
-            <h3>创建新助手</h3>
+            <div class="modal-header">
+                <h3>创建新助手</h3>
+                <button id="cancelCreateBtnIcon" class="icon-btn" title="关闭" data-close-target="createAssistantModal">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
             <label class="modal-label">名称</label>
             <input type="text" id="newAssistantName" placeholder="例如：高等数学" maxlength="30">
             <label class="modal-label">描述</label>
@@ -187,7 +262,9 @@
     <!-- Quiz Options Modal -->
     <div id="quizOptionsModal" class="modal-overlay" style="display:none;">
         <div class="modal">
-            <h3>生成测验</h3>
+            <div class="modal-header">
+                <h3>生成测验</h3>
+            </div>
             <label class="modal-label" for="quizOptCount">题目数量 (1-30)</label>
             <input type="number" id="quizOptCount" min="1" max="30" value="5">
             <label class="modal-label" for="quizOptDifficulty">难度</label>
@@ -216,8 +293,10 @@
     <!-- Memory Note Modal -->
     <div id="memoryModal" class="modal-overlay" style="display:none;">
         <div class="modal">
-            <h3>📝 长期备忘</h3>
-            <p class="modal-hint">这段文字会附加到系统提示中，让助手记住关于你的长期偏好（如学习目标、知识背景、答题风格要求）。</p>
+            <div class="modal-header">
+                <h3>长期备忘</h3>
+            </div>
+            <p class="modal-hint">这段文字会附加到系统提示中，让助手记住你的长期偏好（学习目标、知识背景、答题风格等）。</p>
             <textarea id="memoryNoteInput" placeholder="例如：我正在准备 408 考研，C++ 基础一般，回答时多用类比，代码请详细注释。" rows="6" maxlength="4000"></textarea>
             <div class="modal-actions">
                 <button id="cancelMemoryBtn" class="btn btn-secondary">取消</button>
@@ -229,7 +308,9 @@
     <!-- Mind-Map: New Blank Modal -->
     <div id="mindmapNewBlankModal" class="modal-overlay" style="display:none;">
         <div class="modal">
-            <h3>新建空白思维导图</h3>
+            <div class="modal-header">
+                <h3>新建空白思维导图</h3>
+            </div>
             <label class="modal-label" for="mindmapBlankTitle">标题</label>
             <input type="text" id="mindmapBlankTitle" placeholder="例如：红黑树" maxlength="60">
             <div class="modal-actions">
@@ -242,7 +323,9 @@
     <!-- Mind-Map: New AI Modal -->
     <div id="mindmapNewAiModal" class="modal-overlay" style="display:none;">
         <div class="modal">
-            <h3>AI 生成思维导图</h3>
+            <div class="modal-header">
+                <h3>AI 生成思维导图</h3>
+            </div>
             <label class="modal-label" for="mindmapAiTopic">主题</label>
             <input type="text" id="mindmapAiTopic" placeholder="例如：红黑树" maxlength="60">
             <label class="modal-label" for="mindmapAiTitle">标题（可选，留空使用主题）</label>
@@ -265,7 +348,9 @@
     <!-- Mind-Map: Rename Modal -->
     <div id="mindmapRenameModal" class="modal-overlay" style="display:none;">
         <div class="modal">
-            <h3>重命名</h3>
+            <div class="modal-header">
+                <h3>重命名</h3>
+            </div>
             <label class="modal-label" for="mindmapRenameInput">新名称</label>
             <input type="text" id="mindmapRenameInput" maxlength="60">
             <div class="modal-actions">
@@ -275,10 +360,12 @@
         </div>
     </div>
 
-    <!-- Mind-Map: Node Edit Modal (rename node or edit note) -->
+    <!-- Mind-Map: Node Edit Modal -->
     <div id="mindmapNodeEditModal" class="modal-overlay" style="display:none;">
         <div class="modal">
-            <h3 id="mindmapNodeEditTitle">编辑节点</h3>
+            <div class="modal-header">
+                <h3 id="mindmapNodeEditTitle">编辑节点</h3>
+            </div>
             <label class="modal-label" for="mindmapNodeEditInput">内容</label>
             <textarea id="mindmapNodeEditInput" rows="4" maxlength="2000"></textarea>
             <div class="modal-actions">
@@ -290,11 +377,11 @@
 
     <!-- Scripts -->
     <script src="js/vendor/jsmind.js"></script>
-    <script src="js/api.js?v=5"></script>
-    <script src="js/chat.js?v=5"></script>
-    <script src="js/quiz.js?v=5"></script>
-    <script src="js/upload.js?v=5"></script>
-    <script src="js/mindmap.js?v=1"></script>
-    <script src="js/app.js?v=5"></script>
+    <script src="js/api.js?v=8"></script>
+    <script src="js/chat.js?v=8"></script>
+    <script src="js/quiz.js?v=8"></script>
+    <script src="js/upload.js?v=8"></script>
+    <script src="js/mindmap.js?v=8"></script>
+    <script src="js/app.js?v=8"></script>
 </body>
 </html>

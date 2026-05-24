@@ -136,7 +136,7 @@ class QuizManager {
             <div class="question">
                 <div class="question-header">
                     ${index + 1}. ${typeLabels[question.type] || question.type}
-                    ${question.knowledge_point ? `<span style="color: #6b7280; font-weight: normal;"> - ${question.knowledge_point}</span>` : ''}
+                    ${question.knowledge_point ? `<span style="color: var(--text-mute); font-weight: normal;"> - ${question.knowledge_point}</span>` : ''}
                 </div>
                 <div class="question-text">${this.formatQuestionText(question.question)}</div>
         `;
@@ -230,12 +230,18 @@ class QuizManager {
 
         results.results.forEach((result, index) => {
             const statusClass = result.score === 1 ? 'correct' : (result.score === 0 ? 'incorrect' : 'partial');
-            const statusText = result.score === 1 ? '✓ 正确' : (result.score === 0 ? '✗ 错误' : '△ 部分正确');
+            const statusIcon = result.score === 1
+                ? '<span class="material-symbols-outlined" style="color:var(--ok);vertical-align:middle;">check_circle</span>'
+                : (result.score === 0
+                    ? '<span class="material-symbols-outlined" style="color:var(--danger);vertical-align:middle;">cancel</span>'
+                    : '<span class="material-symbols-outlined" style="color:var(--warn);vertical-align:middle;">change_circle</span>');
+            const statusText = result.score === 1 ? '正确' : (result.score === 0 ? '错误' : '部分正确');
 
             html += `
                 <div class="result-item ${statusClass}">
-                    <div style="font-weight: 600; margin-bottom: 8px;">
-                        ${index + 1}. ${statusText} (${result.score.toFixed(1)} 分)
+                    <div style="font-weight: 600; margin-bottom: 8px; display:flex; align-items:center; gap:6px;">
+                        ${statusIcon}
+                        <span>${index + 1}. ${statusText} (${result.score.toFixed(1)} 分)</span>
                     </div>
                     <div style="margin-bottom: 8px;">
                         <strong>你的答案:</strong> ${result.user_answer || '(未作答)'}
@@ -246,7 +252,7 @@ class QuizManager {
                         </div>
                     ` : ''}
                     ${result.feedback ? `
-                        <div style="color: #6b7280; font-size: 0.9rem;">
+                        <div style="color: var(--text-dim); font-size: 0.9rem;">
                             <strong>反馈:</strong> ${result.feedback}
                         </div>
                     ` : ''}
@@ -274,6 +280,7 @@ class QuizManager {
         document.getElementById('chatView').classList.remove('active');
         document.getElementById('quizView').classList.add('active');
         document.getElementById('mindmapView').classList.remove('active');
+        if (window.app) app.setBodyMode('quiz');
     }
 }
 
