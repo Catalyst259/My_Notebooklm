@@ -1,5 +1,7 @@
 from typing import List, Dict, Any, Optional
 
+from token_budget import trim_history, DEFAULT_HISTORY_BUDGET
+
 
 # System prompts for each assistant
 SYSTEM_PROMPTS = {
@@ -113,14 +115,22 @@ class RAGEngine:
 
         return "\n".join(context_parts)
 
-    def build_messages(self, query: str, history: Optional[List[Dict[str, str]]] = None) -> List[Dict[str, str]]:
+    def build_messages(
+        self,
+        query: str,
+        history: Optional[List[Dict[str, str]]] = None,
+        memory_note: str = "",
+        history_budget: int = DEFAULT_HISTORY_BUDGET,
+    ) -> List[Dict[str, str]]:
         """
         Build the full message list for the LLM call.
-        
+
         Args:
             query: User's current question
             history: Previous conversation history [{"role": "user"|"assistant", "content": str}, ...]
-        
+            memory_note: Optional per-assistant memory note appended to the system prompt.
+            history_budget: Token budget for trimming history before sending.
+
         Returns:
             List of messages in OpenAI-compatible format
         """
@@ -133,6 +143,13 @@ class RAGEngine:
             system_prompt = self.system_prompt
         else:
             system_prompt = SYSTEM_PROMPTS.get(self.assistant_id, SYSTEM_PROMPTS["data_structures"])
+
+        note = (memory_note or "").strip()
+        if note:
+            system_prompt = (
+                f"{system_prompt}\n\n---\n"
+                f"关于这位学习者的长期备忘（用户自己填写，请在回答时纳入考量）：\n{note}"
+            )
 
         # Build contextualized user message
         user_message = f"""以下是从知识库中检索到的相关内容（可能包含中英文混合内容）：
@@ -149,11 +166,9 @@ class RAGEngine:
             {"role": "system", "content": system_prompt},
         ]
 
-        # Add conversation history (exclude oldest if too long)
+        # Add conversation history trimmed to a token budget.
         if history:
-            # Keep last N turns (rough heuristic)
-            history_to_include = history[-10:]
-            messages.extend(history_to_include)
+            messages.extend(trim_history(history, budget=history_budget))
 
         messages.append({"role": "user", "content": user_message})
 

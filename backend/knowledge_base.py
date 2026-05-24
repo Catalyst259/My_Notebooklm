@@ -13,7 +13,7 @@ class KnowledgeBase:
     """Manages vector embeddings, storage (FAISS), and retrieval."""
 
     def __init__(self, model_name: str = "paraphrase-multilingual-MiniLM-L12-v2",
-                 vector_store_path: str = None,
+                 vector_store_path: str = None, # type: ignore
                  model: Optional[SentenceTransformer] = None):
         """
         Initialize with a sentence-transformers model.
@@ -128,7 +128,7 @@ class KnowledgeBase:
         self.index.add_with_ids(
             np.array(embeddings).astype('float32'),
             np.array(chunk_ids, dtype=np.int64)
-        )
+        ) # type: ignore
 
         # Store chunk metadata
         for i, chunk in enumerate(chunks):
@@ -168,7 +168,7 @@ class KnowledgeBase:
         query_embedding = np.array(query_embedding).astype('float32')
 
         # Search
-        scores, indices = self.index.search(query_embedding, min(top_k, self.index.ntotal))
+        scores, indices = self.index.search(query_embedding, min(top_k, self.index.ntotal)) # type: ignore
 
         results = []
         # Build lookup dict for chunk metadata by faiss_id

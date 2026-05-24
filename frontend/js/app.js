@@ -187,11 +187,8 @@ class App {
         // Switch to chat view
         chatManager.showChatView();
 
-        // Clear previous chat
-        chatManager.clearMessages();
-
-        // Add welcome message
-        chatManager.addMessage('system', `已切换到 ${assistant.name} 助手。你可以上传学习资料或直接提问。`);
+        // Load or create a session for this assistant (most-recent first).
+        chatManager.onAssistantSelected(assistant.id);
 
         // Refresh stats and file list
         this.refreshStats();
@@ -289,16 +286,21 @@ class App {
     async clearHistory() {
         if (!this.currentAssistant) return;
 
-        if (!confirm('确定要清空对话历史吗？')) return;
+        if (!confirm('确定要清空当前对话吗？')) return;
 
         try {
-            await api.clearHistory(this.currentAssistant.id);
+            // New flow: delete the current session and start fresh.
+            if (chatManager.currentSessionId) {
+                await api.deleteSession(chatManager.currentSessionId, this.currentAssistant.id);
+            }
+            await chatManager.refreshSessions();
+            chatManager.currentSessionId = null;
             chatManager.clearMessages();
-            chatManager.addMessage('system', '对话历史已清空');
-            showToast('对话历史已清空', 'success');
+            chatManager.updateSessionTitle('新对话');
+            showToast('对话已清空', 'success');
         } catch (error) {
             console.error('Failed to clear history:', error);
-            showToast('清空对话历史失败', 'error');
+            showToast('清空对话失败', 'error');
         }
     }
 

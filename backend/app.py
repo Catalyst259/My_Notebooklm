@@ -19,14 +19,20 @@ from file_processor import FileProcessor
 from knowledge_base import KnowledgeBase
 from rag_engine import RAGEngine, build_generic_system_prompt
 from quiz_engine import QuizEngine
+from session_store import SessionStore
+from memory_store import MemoryStore
 
 # --- Paths ---
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 UPLOAD_BASE_DIR = os.path.join(BASE_DIR, 'data', 'uploaded')
 VECTOR_STORE_BASE_DIR = os.path.join(BASE_DIR, 'data', 'vector_store')
+SESSIONS_BASE_DIR = os.path.join(BASE_DIR, 'data', 'sessions')
+MEMORY_BASE_DIR = os.path.join(BASE_DIR, 'data', 'memory')
 ASSISTANTS_CONFIG_PATH = os.path.join(BASE_DIR, 'data', 'assistants_config.json')
 os.makedirs(UPLOAD_BASE_DIR, exist_ok=True)
 os.makedirs(VECTOR_STORE_BASE_DIR, exist_ok=True)
+os.makedirs(SESSIONS_BASE_DIR, exist_ok=True)
+os.makedirs(MEMORY_BASE_DIR, exist_ok=True)
 
 # --- Default Assistant Configuration (seed for first run) ---
 _DEFAULT_ASSISTANTS = {
@@ -117,7 +123,11 @@ class AssistantInstance:
             assistant_id=assistant_id,
             assistant_name=config["name"]
         )
-        self.conversation_history: List[dict] = []
+        self.session_store = SessionStore(SESSIONS_BASE_DIR, assistant_id)
+
+
+# Shared memory store across assistants (one file per assistant_id).
+memory_store = MemoryStore(MEMORY_BASE_DIR)
 
 
 # Initialize all assistants
@@ -296,41 +306,54 @@ async def delete_file(
 async def chat(
     message: str = Form(...),
     api_key: str = Form(...),
-    assistant_id: str = Form("data_structures")
+    assistant_id: str = Form("data_structures"),
+    session_id: str = Form("")
 ):
     """
     Chat endpoint with streaming response for a specific assistant.
     Uses RAG to retrieve context, then calls DeepSeek API.
+
+    If ``session_id`` is empty or unknown, a new session is created and its id
+    is emitted in the final SSE event so the client can adopt it.
     """
-    # Validate API key
     if not api_key:
         raise HTTPException(status_code=400, detail="API Key is required.")
 
     assistant = get_assistant(assistant_id)
+    store = assistant.session_store
 
-    # Build RAG-enhanced messages using assistant's RAG engine and history
-    messages = assistant.rag_engine.build_messages(message, assistant.conversation_history)
+    # Resolve / create session
+    if not session_id or not store.exists(session_id):
+        session = store.create()
+        session_id = session["id"]
 
-    # Store user message
-    assistant.conversation_history.append({"role": "user", "content": message})
+    history = store.get_messages_for_llm(session_id)
+    memory_note = memory_store.read(assistant_id)
 
-    # DeepSeek API config (locked)
+    messages = assistant.rag_engine.build_messages(
+        message,
+        history=history,
+        memory_note=memory_note,
+    )
+
+    # Persist user turn immediately (so a mid-stream disconnect still records the question).
+    store.append_message(session_id, "user", message)
+
     client = AsyncOpenAI(
         api_key=api_key,
         base_url="https://api.deepseek.com"
     )
 
     async def generate():
-        """Stream response from DeepSeek and accumulate."""
         full_response = ""
         try:
             stream = await client.chat.completions.create(
-                model="deepseek-chat",  # deepseek-v4-flash equivalent
-                messages=messages,
+                model="deepseek-chat",
+                messages=messages, # type: ignore
                 stream=True,
                 temperature=0.7,
                 max_tokens=4096
-            )
+            ) # type: ignore
 
             async for chunk in stream:
                 if chunk.choices and len(chunk.choices) > 0:
@@ -338,20 +361,15 @@ async def chat(
                     if delta and delta.content:
                         content = delta.content
                         full_response += content
-                        yield f"data: {json.dumps({'content': content, 'done': False})}\n\n"
+                        yield f"data: {json.dumps({'content': content, 'done': False, 'session_id': session_id})}\n\n"
 
         except Exception as e:
-            yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
+            yield f"data: {json.dumps({'error': str(e), 'done': True, 'session_id': session_id})}\n\n"
             return
 
-        # Store assistant response
-        assistant.conversation_history.append({"role": "assistant", "content": full_response})
+        store.append_message(session_id, "assistant", full_response)
 
-        # Keep history manageable (last ~20 turns)
-        while len(assistant.conversation_history) > 40:
-            assistant.conversation_history.pop(0)
-
-        yield f"data: {json.dumps({'content': '', 'done': True})}\n\n"
+        yield f"data: {json.dumps({'content': '', 'done': True, 'session_id': session_id})}\n\n"
 
     return StreamingResponse(
         generate(),
@@ -366,10 +384,193 @@ async def chat(
 
 @app.post("/api/clear")
 async def clear_history(assistant_id: str = Form("data_structures")):
-    """Clear conversation history for a specific assistant."""
+    """Deprecated: delete the most-recent session for an assistant.
+
+    Kept for compatibility with older frontends. Prefer ``DELETE /api/sessions/{id}``.
+    """
     assistant = get_assistant(assistant_id)
-    assistant.conversation_history.clear()
-    return {"message": "对话历史已清空", "assistant_id": assistant_id}
+    sid = assistant.session_store.most_recent_session_id()
+    if sid:
+        assistant.session_store.delete(sid)
+    return {"message": "对话历史已清空", "assistant_id": assistant_id, "deleted_session_id": sid}
+
+
+# --- Sessions ---------------------------------------------------------------
+
+@app.get("/api/sessions")
+async def list_sessions(assistant_id: str = Query("data_structures")):
+    """List sessions for an assistant (newest first)."""
+    assistant = get_assistant(assistant_id)
+    return {"sessions": assistant.session_store.list_sessions()}
+
+
+@app.post("/api/sessions")
+async def create_session(
+    assistant_id: str = Form("data_structures"),
+    title: str = Form("")
+):
+    """Create a new empty session."""
+    assistant = get_assistant(assistant_id)
+    session = assistant.session_store.create(title=title or None)
+    return {"session": session}
+
+
+@app.get("/api/sessions/{session_id}")
+async def get_session(
+    session_id: str,
+    assistant_id: str = Query("data_structures")
+):
+    """Fetch a full session (with all messages)."""
+    assistant = get_assistant(assistant_id)
+    try:
+        return {"session": assistant.session_store.get(session_id)}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+
+@app.patch("/api/sessions/{session_id}")
+async def rename_session(
+    session_id: str,
+    title: str = Form(...),
+    assistant_id: str = Form("data_structures")
+):
+    """Rename a session."""
+    assistant = get_assistant(assistant_id)
+    try:
+        return {"session": assistant.session_store.rename(session_id, title)}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+
+@app.delete("/api/sessions/{session_id}")
+async def delete_session(
+    session_id: str,
+    assistant_id: str = Query("data_structures")
+):
+    """Delete a session."""
+    assistant = get_assistant(assistant_id)
+    assistant.session_store.delete(session_id)
+    return {"message": "会话已删除", "session_id": session_id}
+
+
+@app.delete("/api/sessions/{session_id}/messages/{index}")
+async def delete_message(
+    session_id: str,
+    index: int,
+    assistant_id: str = Query("data_structures")
+):
+    """Delete one message and its paired turn so user/assistant pairing stays intact."""
+    assistant = get_assistant(assistant_id)
+    try:
+        session = assistant.session_store.delete_message_pair(session_id, index)
+        return {"session": session}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Session not found")
+    except IndexError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/sessions/{session_id}/regenerate")
+async def regenerate_last(
+    session_id: str,
+    api_key: str = Form(...),
+    assistant_id: str = Form("data_structures")
+):
+    """Re-run the last user turn after dropping the previous assistant reply.
+
+    Streams the new reply just like /api/chat. Requires that the session ends
+    in either an assistant or user turn; otherwise returns 400.
+    """
+    if not api_key:
+        raise HTTPException(status_code=400, detail="API Key is required.")
+
+    assistant = get_assistant(assistant_id)
+    store = assistant.session_store
+    try:
+        session = store.get(session_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if not session["messages"]:
+        raise HTTPException(status_code=400, detail="会话为空，无法重新生成。")
+
+    # Drop trailing assistant reply if present so we can re-ask the last user message.
+    store.pop_last_assistant(session_id)
+    session = store.get(session_id)
+    if not session["messages"] or session["messages"][-1]["role"] != "user":
+        raise HTTPException(status_code=400, detail="最近一条不是用户消息，无法重新生成。")
+
+    last_user_message = session["messages"][-1]["content"]
+
+    # Build the LLM call from history minus the trailing user turn (it goes in as `query`).
+    history_for_llm = [
+        {"role": m["role"], "content": m["content"]}
+        for m in session["messages"][:-1]
+    ]
+    memory_note = memory_store.read(assistant_id)
+    messages = assistant.rag_engine.build_messages(
+        last_user_message,
+        history=history_for_llm,
+        memory_note=memory_note,
+    )
+
+    client = AsyncOpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+
+    async def generate():
+        full_response = ""
+        try:
+            stream = await client.chat.completions.create(
+                model="deepseek-chat",
+                messages=messages, # type: ignore
+                stream=True,
+                temperature=0.7,
+                max_tokens=4096
+            ) # type: ignore
+            async for chunk in stream:
+                if chunk.choices and len(chunk.choices) > 0:
+                    delta = chunk.choices[0].delta
+                    if delta and delta.content:
+                        full_response += delta.content
+                        yield f"data: {json.dumps({'content': delta.content, 'done': False, 'session_id': session_id})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e), 'done': True, 'session_id': session_id})}\n\n"
+            return
+
+        store.append_message(session_id, "assistant", full_response)
+        yield f"data: {json.dumps({'content': '', 'done': True, 'session_id': session_id})}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
+# --- Memory note ------------------------------------------------------------
+
+@app.get("/api/memory")
+async def get_memory(assistant_id: str = Query("data_structures")):
+    """Get the per-assistant memory note (plain text)."""
+    get_assistant(assistant_id)  # 404 if unknown
+    return {"assistant_id": assistant_id, "memory": memory_store.read(assistant_id)}
+
+
+@app.put("/api/memory")
+async def save_memory(
+    assistant_id: str = Form("data_structures"),
+    memory: str = Form("")
+):
+    """Save the per-assistant memory note."""
+    get_assistant(assistant_id)
+    try:
+        memory_store.write(assistant_id, memory)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"message": "备忘已保存", "assistant_id": assistant_id}
 
 
 @app.post("/api/quiz/generate")
@@ -505,6 +706,12 @@ async def delete_assistant(
     upload_dir = os.path.join(UPLOAD_BASE_DIR, assistant_id)
     if os.path.exists(upload_dir):
         shutil.rmtree(upload_dir)
+
+    sessions_dir = os.path.join(SESSIONS_BASE_DIR, assistant_id)
+    if os.path.exists(sessions_dir):
+        shutil.rmtree(sessions_dir)
+
+    memory_store.delete(assistant_id)
 
     del assistant_registry[assistant_id]
 
