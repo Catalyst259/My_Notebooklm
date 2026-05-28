@@ -163,6 +163,7 @@ data: {"error": "...", "done": true}     # 失败
 **目标**：可创建/列出/读取/保存/删除 mind-map（用占位数据）。
 
 1. 在 `app.py` 顶部加 `MINDMAPS_BASE_DIR = os.path.join(BASE_DIR, 'data', 'mindmaps')`，`os.makedirs(..., exist_ok=True)`。
+
 2. 新建 `backend/mindmap_store.py`：
    - 类签名严格参照 `session_store.py`。
    - `__init__(base_dir, assistant_id)`：`self.dir = base_dir/assistant_id`，确保存在。

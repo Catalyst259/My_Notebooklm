@@ -1066,6 +1066,52 @@ jmnodes.theme-primary jmexpander {
 jmnodes { color: var(--text); }
 
 /* =========================================================================
+ * Review View
+ * ========================================================================= */
+.review-toolbar {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--sp-5);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+.review-tabs { display: flex; gap: var(--sp-2); }
+.review-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--sp-6) var(--sp-5);
+}
+.review-card {
+    max-width: 720px;
+    margin: 0 auto;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    padding: var(--sp-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+}
+.review-card-front {
+    font-size: var(--fs-lg);
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.6;
+}
+.review-card-back {
+    color: var(--text-dim);
+    line-height: 1.7;
+    white-space: pre-wrap;
+}
+.review-card-actions {
+    display: flex;
+    gap: var(--sp-3);
+    justify-content: center;
+}
+
+/* =========================================================================
  * Modal
  * ========================================================================= */
 .modal-overlay {

@@ -237,6 +237,15 @@ class ChatManager {
                 actions.appendChild(regenBtn);
             }
 
+            if (message.role === 'assistant') {
+                const reviewBtn = document.createElement('button');
+                reviewBtn.className = 'msg-action-btn';
+                reviewBtn.title = '加入复习';
+                reviewBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">event_repeat</span>';
+                reviewBtn.addEventListener('click', () => this.addToReview(index));
+                actions.appendChild(reviewBtn);
+            }
+
             wrap.appendChild(actions);
         }
 
@@ -453,6 +462,13 @@ class ChatManager {
         URL.revokeObjectURL(url);
     }
 
+    addToReview(messageIndex) {
+        const msg = this.messages[messageIndex];
+        if (!msg || msg.role !== 'assistant' || !window.reviewManager) return;
+        const title = document.getElementById('currentSessionTitle')?.textContent || '对话';
+        reviewManager.openDraftModal(msg.content || '', `来自对话「${title}」`);
+    }
+
     // --- Memory note modal -------------------------------------------------
 
     async openMemoryModal() {
@@ -512,6 +528,7 @@ class ChatManager {
         document.getElementById('chatView').classList.add('active');
         document.getElementById('quizView').classList.remove('active');
         document.getElementById('mindmapView').classList.remove('active');
+        document.getElementById('reviewView').classList.remove('active');
         if (window.app) app.setBodyMode('chat');
     }
 }

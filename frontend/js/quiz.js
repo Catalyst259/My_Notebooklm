@@ -280,6 +280,7 @@ class QuizManager {
         document.getElementById('chatView').classList.remove('active');
         document.getElementById('quizView').classList.add('active');
         document.getElementById('mindmapView').classList.remove('active');
+        document.getElementById('reviewView').classList.remove('active');
         if (window.app) app.setBodyMode('quiz');
     }
 }

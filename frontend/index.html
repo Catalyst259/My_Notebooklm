@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
-    <link rel="stylesheet" href="css/styles.css?v=8">
+    <link rel="stylesheet" href="css/styles.css?v=9">
     <link rel="stylesheet" href="js/vendor/jsmind.css">
 </head>
 <body class="theme-dark is-assistant-selection">
@@ -155,6 +155,18 @@
                     </div>
                 </div>
             </div>
+
+            <div id="reviewView" class="view">
+                <div class="review-toolbar">
+                    <span class="current-mindmap-title">复习</span>
+                    <div class="review-tabs">
+                        <button id="reviewTabToday" class="btn btn-secondary btn-sm">今日复习</button>
+                        <button id="reviewTabAll" class="btn btn-secondary btn-sm">全部</button>
+                    </div>
+                </div>
+                <div id="reviewTodayPanel" class="review-panel"></div>
+                <div id="reviewAllPanel" class="review-panel" hidden></div>
+            </div>
         </section>
 
         <!-- Studio Panel (right) -->
@@ -172,6 +184,10 @@
                     <button id="openMindmapBtn" class="tool-btn">
                         <span class="material-symbols-outlined">account_tree</span>
                         <span class="tool-btn__label">思维导图</span>
+                    </button>
+                    <button id="openReviewBtn" class="tool-btn">
+                        <span class="material-symbols-outlined">event_repeat</span>
+                        <span class="tool-btn__label">复习</span>
                     </button>
                     <button id="memoryBtn" class="tool-btn">
                         <span class="material-symbols-outlined">edit_note</span>
@@ -203,6 +219,13 @@
                             </div>
                         </div>
                         <div id="mindmapList" class="mindmap-list"></div>
+                    </div>
+
+                    <div id="reviewListContainer" class="list-container" data-view="review" hidden>
+                        <div class="list-header">
+                            <span class="list-header__title">复习</span>
+                        </div>
+                        <div id="reviewList" class="mindmap-list"></div>
                     </div>
                 </div>
             </div>
@@ -375,13 +398,32 @@
         </div>
     </div>
 
+    <!-- Review Draft Modal -->
+    <div id="reviewDraftModal" class="modal-overlay" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>加入复习</h3>
+            </div>
+            <div id="reviewDraftStatus" class="modal-hint">AI 正在起草...</div>
+            <label class="modal-label" for="reviewDraftFront">正面</label>
+            <textarea id="reviewDraftFront" rows="3" maxlength="500"></textarea>
+            <label class="modal-label" for="reviewDraftBack">背面</label>
+            <textarea id="reviewDraftBack" rows="6" maxlength="2000"></textarea>
+            <div class="modal-actions">
+                <button id="cancelReviewDraftBtn" class="btn btn-secondary">取消</button>
+                <button id="saveReviewDraftBtn" class="btn btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="js/vendor/jsmind.js"></script>
-    <script src="js/api.js?v=8"></script>
-    <script src="js/chat.js?v=8"></script>
-    <script src="js/quiz.js?v=8"></script>
-    <script src="js/upload.js?v=8"></script>
-    <script src="js/mindmap.js?v=8"></script>
-    <script src="js/app.js?v=8"></script>
+    <script src="js/api.js?v=9"></script>
+    <script src="js/chat.js?v=9"></script>
+    <script src="js/quiz.js?v=9"></script>
+    <script src="js/upload.js?v=9"></script>
+    <script src="js/mindmap.js?v=9"></script>
+    <script src="js/review.js?v=1"></script>
+    <script src="js/app.js?v=9"></script>
 </body>
 </html>

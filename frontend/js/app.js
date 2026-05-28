@@ -21,6 +21,7 @@ class App {
         quizManager.init();
         uploadManager.init();
         mindmapManager.init();
+        reviewManager.init();
 
         this.setupEventListeners();
         this.loadApiKey();
@@ -86,25 +87,22 @@ class App {
     }
 
     setBodyMode(mode) {
-        // mode: 'selection' | 'chat' | 'quiz' | 'mindmap'
+        // mode: 'selection' | 'chat' | 'quiz' | 'mindmap' | 'review'
         const body = document.body;
-        body.classList.remove('is-assistant-selection', 'is-quiz-fullscreen', 'is-chat', 'is-mindmap');
+        body.classList.remove('is-assistant-selection', 'is-quiz-fullscreen', 'is-chat', 'is-mindmap', 'is-review');
         if (mode === 'selection') body.classList.add('is-assistant-selection');
         else if (mode === 'quiz') body.classList.add('is-quiz-fullscreen');
         else if (mode === 'chat') body.classList.add('is-chat');
         else if (mode === 'mindmap') body.classList.add('is-mindmap');
+        else if (mode === 'review') body.classList.add('is-review');
 
-        // Switch studio list view (chat sessions vs mindmap list)
         const sessions = document.getElementById('sessionListContainer');
         const maps = document.getElementById('mindmapListContainer');
-        if (sessions && maps) {
-            if (mode === 'mindmap') {
-                sessions.hidden = true;
-                maps.hidden = false;
-            } else {
-                sessions.hidden = false;
-                maps.hidden = true;
-            }
+        const reviews = document.getElementById('reviewListContainer');
+        if (sessions && maps && reviews) {
+            sessions.hidden = mode !== 'chat';
+            maps.hidden = mode !== 'mindmap';
+            reviews.hidden = mode !== 'review';
         }
     }
 
@@ -262,6 +260,7 @@ class App {
         chatManager.onAssistantSelected(assistant.id);
 
         if (window.mindmapManager) mindmapManager.onAssistantChanged();
+        if (window.reviewManager && reviewManager.onAssistantChanged) reviewManager.onAssistantChanged();
 
         this.refreshStats();
         this.refreshFileList();
@@ -275,6 +274,7 @@ class App {
         document.getElementById('chatView').classList.remove('active');
         document.getElementById('quizView').classList.remove('active');
         document.getElementById('mindmapView').classList.remove('active');
+        document.getElementById('reviewView').classList.remove('active');
         this.setBodyMode('selection');
         const headerCurrent = document.getElementById('headerCurrent');
         if (headerCurrent) headerCurrent.innerHTML = '';

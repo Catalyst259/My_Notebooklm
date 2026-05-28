@@ -141,6 +141,16 @@ def build_generic_system_prompt(name: str, description: str) -> str:
 # ============================================================
 # 思维导图操作 prompt（叠加在学科 system prompt 之后）
 # ============================================================
+REVIEW_CARD_DRAFT_PROMPT = (
+    "你正在帮助学生把一段学习内容整理成一张复习卡片。"
+    "请基于提供的内容生成一张 Anki 风格的卡片："
+    "front 是一个简短的问题或提示（不超过 50 字），"
+    "back 是简明的中文答案（2-4 句话，可包含必要的代码或公式）。"
+    "只输出合法 JSON，不要输出 Markdown 代码块。"
+    "结构：{\"front\": \"...\", \"back\": \"...\"}"
+)
+
+
 MINDMAP_OP_PROMPTS = {
     "generate_tree": (
         "现在切换到「思维导图生成」模式。\n"
@@ -349,6 +359,39 @@ class RAGEngine:
             "---\n"
             "请基于以上参考（若相关）以及你的通用知识，严格按上方"
             "「严格输出规范」生成内容。"
+        )
+
+        return [
+            {"role": "system", "content": full_system},
+            {"role": "user", "content": user_message},
+        ]
+
+    def build_review_card_messages(
+        self,
+        source_content: str,
+        source_context: str = "",
+    ) -> List[Dict[str, str]]:
+        """Build messages for AI card drafting. top-3 retrieval, capped at 1500 chars."""
+        results = self.knowledge_base.search(source_content, top_k=3) if source_content else []
+        context_parts = []
+        total = 0
+        for r in results:
+            entry = f"参考片段（{r.get('file_name','')}）:\n{r.get('text','').strip()}\n"
+            if total + len(entry) > 1500:
+                break
+            context_parts.append(entry)
+            total += len(entry)
+        context = "\n".join(context_parts) if context_parts else "（无相关参考片段）"
+
+        subject_prompt = self._get_subject_system_prompt()
+        full_system = subject_prompt + "\n\n---\n" + REVIEW_CARD_DRAFT_PROMPT
+
+        ctx_note = f"\n上下文说明：{source_context}\n" if source_context else ""
+        user_message = (
+            f"以下是学生标记的学习内容：\n\n{source_content}\n"
+            f"{ctx_note}\n"
+            f"可参考的知识库片段：\n{context}\n\n"
+            "请输出 JSON：{\"front\": \"...\", \"back\": \"...\"}"
         )
 
         return [

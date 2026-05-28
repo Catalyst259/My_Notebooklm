@@ -394,6 +394,122 @@ class APIClient {
             signal
         });
     }
+
+    // --- Review ---
+
+    async listReviewItems(assistantId, includeArchived = false) {
+        const response = await fetch(`${this.baseUrl}/api/reviews?assistant_id=${assistantId}&include_archived=${includeArchived}`);
+        if (!response.ok) throw new Error('Failed to list review items');
+        return await response.json();
+    }
+
+    async getReviewItem(assistantId, itemId) {
+        const response = await fetch(`${this.baseUrl}/api/reviews/${itemId}?assistant_id=${assistantId}`);
+        if (!response.ok) throw new Error('Failed to fetch review item');
+        return await response.json();
+    }
+
+    async createReviewItem(assistantId, itemType, snapshot, source) {
+        const formData = new FormData();
+        formData.append('assistant_id', assistantId);
+        formData.append('item_type', itemType);
+        formData.append('snapshot_json', JSON.stringify(snapshot));
+        formData.append('source_json', JSON.stringify(source));
+        const response = await fetch(`${this.baseUrl}/api/reviews`, {
+            method: 'POST',
+            body: formData
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: '创建失败' }));
+            throw new Error(error.detail || 'Failed to create review item');
+        }
+        return await response.json();
+    }
+
+    async updateReviewItem(assistantId, itemId, snapshot = null, status = '') {
+        const formData = new FormData();
+        formData.append('assistant_id', assistantId);
+        if (snapshot) formData.append('snapshot_json', JSON.stringify(snapshot));
+        if (status) formData.append('status', status);
+        const response = await fetch(`${this.baseUrl}/api/reviews/${itemId}`, {
+            method: 'PATCH',
+            body: formData
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: '更新失败' }));
+            throw new Error(error.detail || 'Failed to update review item');
+        }
+        return await response.json();
+    }
+
+    async deleteReviewItem(assistantId, itemId) {
+        const response = await fetch(`${this.baseUrl}/api/reviews/${itemId}?assistant_id=${assistantId}`, {
+            method: 'DELETE'
+        });
+        if (!response.ok) throw new Error('Failed to delete review item');
+        return await response.json();
+    }
+
+    async gradeReviewItem(apiKey, assistantId, itemId, responsePayload) {
+        const formData = new FormData();
+        formData.append('api_key', apiKey || '');
+        formData.append('assistant_id', assistantId);
+        formData.append('user_response_json', JSON.stringify(responsePayload));
+        const response = await fetch(`${this.baseUrl}/api/reviews/${itemId}/grade`, {
+            method: 'POST',
+            body: formData
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: '批改失败' }));
+            throw new Error(error.detail || 'Failed to grade review item');
+        }
+        return await response.json();
+    }
+
+    async getTodayReview(assistantId) {
+        const response = await fetch(`${this.baseUrl}/api/reviews/queue/today?assistant_id=${assistantId}`);
+        if (!response.ok) throw new Error('Failed to load today review queue');
+        return await response.json();
+    }
+
+    async archiveReviewItem(assistantId, itemId) {
+        const formData = new FormData();
+        formData.append('assistant_id', assistantId);
+        const response = await fetch(`${this.baseUrl}/api/reviews/${itemId}/archive`, {
+            method: 'POST',
+            body: formData
+        });
+        if (!response.ok) throw new Error('Failed to archive review item');
+        return await response.json();
+    }
+
+    async reactivateReviewItem(assistantId, itemId) {
+        const formData = new FormData();
+        formData.append('assistant_id', assistantId);
+        const response = await fetch(`${this.baseUrl}/api/reviews/${itemId}/reactivate`, {
+            method: 'POST',
+            body: formData
+        });
+        if (!response.ok) throw new Error('Failed to reactivate review item');
+        return await response.json();
+    }
+
+    async draftReviewCard(apiKey, assistantId, sourceContent, sourceContext = '') {
+        const formData = new FormData();
+        formData.append('api_key', apiKey);
+        formData.append('assistant_id', assistantId);
+        formData.append('source_content', sourceContent);
+        formData.append('source_context', sourceContext);
+        const response = await fetch(`${this.baseUrl}/api/reviews/draft`, {
+            method: 'POST',
+            body: formData
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: '生成失败' }));
+            throw new Error(error.detail || 'Failed to draft review card');
+        }
+        return await response.json();
+    }
 }
 
 // Export singleton instance

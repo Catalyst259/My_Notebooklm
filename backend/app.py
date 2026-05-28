@@ -6,6 +6,7 @@ import asyncio
 import json
 import random
 import hashlib
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
 
@@ -23,6 +24,9 @@ from session_store import SessionStore
 from memory_store import MemoryStore
 from mindmap_store import MindMapStore
 from mindmap_engine import MindMapEngine
+from review_store import ReviewStore
+from review_engine import ReviewEngine
+from llm_grading import _extract_json as _llm_extract_json
 
 # --- Paths ---
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -31,12 +35,14 @@ VECTOR_STORE_BASE_DIR = os.path.join(BASE_DIR, 'data', 'vector_store')
 SESSIONS_BASE_DIR = os.path.join(BASE_DIR, 'data', 'sessions')
 MEMORY_BASE_DIR = os.path.join(BASE_DIR, 'data', 'memory')
 MINDMAPS_BASE_DIR = os.path.join(BASE_DIR, 'data', 'mindmaps')
+REVIEWS_BASE_DIR = os.path.join(BASE_DIR, 'data', 'reviews')
 ASSISTANTS_CONFIG_PATH = os.path.join(BASE_DIR, 'data', 'assistants_config.json')
 os.makedirs(UPLOAD_BASE_DIR, exist_ok=True)
 os.makedirs(VECTOR_STORE_BASE_DIR, exist_ok=True)
 os.makedirs(SESSIONS_BASE_DIR, exist_ok=True)
 os.makedirs(MEMORY_BASE_DIR, exist_ok=True)
 os.makedirs(MINDMAPS_BASE_DIR, exist_ok=True)
+os.makedirs(REVIEWS_BASE_DIR, exist_ok=True)
 
 # --- Default Assistant Configuration (seed for first run) ---
 _DEFAULT_ASSISTANTS = {
@@ -135,6 +141,8 @@ class AssistantInstance:
             assistant_id=assistant_id,
             assistant_name=config["name"],
         )
+        self.review_store = ReviewStore(REVIEWS_BASE_DIR, assistant_id)
+        self.review_engine = ReviewEngine(self.review_store, assistant_id)
 
 
 # Shared memory store across assistants (one file per assistant_id).
@@ -770,7 +778,7 @@ async def grade_quiz(
     questions_json: str = Form(...),
     answers_json: str = Form(...)
 ):
-    """Grade a submitted quiz."""
+    """Grade a submitted quiz. Auto-enroll wrong items into review."""
     if not api_key:
         raise HTTPException(status_code=400, detail="API Key is required.")
     assistant = get_assistant(assistant_id)
@@ -779,7 +787,40 @@ async def grade_quiz(
         answers = json.loads(answers_json)
         if not isinstance(questions, list) or not isinstance(answers, dict):
             raise ValueError("Invalid quiz payload.")
-        return await assistant.quiz_engine.grade(api_key, questions, answers)
+        grade_result = await assistant.quiz_engine.grade(api_key, questions, answers)
+
+        # Auto-enroll wrong items (score < 0.8) into review.
+        for i, q in enumerate(questions):
+            result = grade_result["results"][i] if i < len(grade_result["results"]) else {}
+            score = float(result.get("score", 0))
+            if score >= 0.8:
+                continue
+            qtype = q.get("type", "short_answer")
+            item_type = "mcq" if qtype == "single_choice" else "qa"
+            snapshot = {
+                "front": q.get("question", ""),
+                "back": q.get("answer", ""),
+                "answer_key": q.get("answer", ""),
+                "options": q.get("options", []),
+                "explanation": q.get("explanation", ""),
+                "user_answer": str(answers.get(q.get("id", ""), "")),
+            }
+            source = {
+                "type": "quiz_wrong",
+                "ref": q.get("id", ""),
+                "label": q.get("knowledge_point", ""),
+                "initial_signal": score,
+            }
+            srs = assistant.review_engine.seed_srs(item_type, initial_signal=score)
+            new_item = assistant.review_store.create_item({
+                "type": item_type,
+                "snapshot": snapshot,
+                "source": source,
+                "srs": srs,
+            })
+            assistant.review_engine.add_to_today_queue_if_due(new_item)
+
+        return grade_result
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON payload.")
     except ValueError as e:
@@ -878,6 +919,10 @@ async def delete_assistant(
     if os.path.exists(mindmaps_dir):
         shutil.rmtree(mindmaps_dir)
 
+    reviews_dir = os.path.join(REVIEWS_BASE_DIR, assistant_id)
+    if os.path.exists(reviews_dir):
+        shutil.rmtree(reviews_dir)
+
     memory_store.delete(assistant_id)
 
     del assistant_registry[assistant_id]
@@ -886,6 +931,222 @@ async def delete_assistant(
     _save_assistants_config(ASSISTANTS_CONFIG)
 
     return {"message": f"助手已删除", "assistant_id": assistant_id}
+
+
+# --- Review endpoints ------------------------------------------------------
+# NB: Fixed-path routes (/queue/today, /draft) MUST come before /{item_id}
+# parameterized routes, since FastAPI matches in declaration order.
+
+@app.get("/api/reviews")
+async def list_reviews(
+    assistant_id: str = Query("data_structures"),
+    include_archived: bool = Query(False),
+):
+    """List review items (index entries)."""
+    assistant = get_assistant(assistant_id)
+    return {"items": assistant.review_store.list_items(include_archived=include_archived)}
+
+
+@app.get("/api/reviews/queue/today")
+async def get_today_queue(
+    assistant_id: str = Query("data_structures"),
+    date: str = Query(""),
+):
+    """Get or generate today's review queue, with the full item dicts inlined."""
+    assistant = get_assistant(assistant_id)
+    queue = assistant.review_engine.get_or_create_today_queue(today=date or None)
+    items_by_id: Dict[str, Any] = {}
+    for entry in queue.get("entries", []):
+        try:
+            items_by_id[entry["item_id"]] = assistant.review_store.get_item(entry["item_id"])
+        except KeyError:
+            continue
+    return {"queue": queue, "items": items_by_id}
+
+
+@app.post("/api/reviews/draft")
+async def draft_review_card(
+    api_key: str = Form(...),
+    assistant_id: str = Form("data_structures"),
+    source_content: str = Form(...),
+    source_context: str = Form(""),
+):
+    """AI-draft a review card from user-provided content."""
+    if not api_key:
+        raise HTTPException(status_code=400, detail="API Key is required.")
+    assistant = get_assistant(assistant_id)
+    try:
+        messages = assistant.rag_engine.build_review_card_messages(
+            source_content=source_content,
+            source_context=source_context,
+        )
+        client = AsyncOpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+        completion = await client.chat.completions.create(
+            model="deepseek-chat",
+            messages=messages,  # type: ignore
+            temperature=0.5,
+            max_tokens=512,
+        )
+        raw = completion.choices[0].message.content or ""
+        payload = _llm_extract_json(raw)
+        front = str(payload.get("front", "")).strip()
+        back = str(payload.get("back", "")).strip()
+        if not front or not back:
+            raise ValueError("LLM 未返回有效的 front/back。")
+        return {"front": front, "back": back}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Card drafting failed: {str(e)}")
+
+
+@app.post("/api/reviews")
+async def create_review_item(
+    assistant_id: str = Form("data_structures"),
+    item_type: str = Form(...),
+    snapshot_json: str = Form(...),
+    source_json: str = Form(...),
+):
+    """Create a new review item (manual or from draft)."""
+    assistant = get_assistant(assistant_id)
+    try:
+        snapshot = json.loads(snapshot_json)
+        source = json.loads(source_json)
+        if not isinstance(snapshot, dict) or not isinstance(source, dict):
+            raise ValueError("snapshot_json and source_json must be objects.")
+        srs = assistant.review_engine.seed_srs(item_type)
+        item = assistant.review_store.create_item({
+            "type": item_type,
+            "snapshot": snapshot,
+            "source": source,
+            "srs": srs,
+        })
+        assistant.review_engine.add_to_today_queue_if_due(item)
+        return {"item": item}
+    except (json.JSONDecodeError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/reviews/{item_id}")
+async def get_review_item(
+    item_id: str,
+    assistant_id: str = Query("data_structures"),
+):
+    """Fetch a single review item."""
+    assistant = get_assistant(assistant_id)
+    try:
+        return {"item": assistant.review_store.get_item(item_id)}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Review item not found")
+
+
+@app.patch("/api/reviews/{item_id}")
+async def update_review_item(
+    item_id: str,
+    assistant_id: str = Form("data_structures"),
+    snapshot_json: str = Form(""),
+    status: str = Form(""),
+):
+    """Update a review item. PRD Q16: only card snapshots are mutable."""
+    assistant = get_assistant(assistant_id)
+    try:
+        item = assistant.review_store.get_item(item_id)
+        updates = {}
+        if snapshot_json:
+            if item.get("type") != "card":
+                raise HTTPException(status_code=400, detail="只有手动卡片可以编辑快照。")
+            snapshot = json.loads(snapshot_json)
+            if not isinstance(snapshot, dict):
+                raise ValueError("snapshot_json must be an object.")
+            updates["snapshot"] = snapshot
+        if status:
+            if status not in ("active", "archived"):
+                raise ValueError("status must be 'active' or 'archived'.")
+            updates["status"] = status
+        result = assistant.review_store.update_item(item_id, **updates)
+        return {"item": result}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Review item not found")
+    except (json.JSONDecodeError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/reviews/{item_id}")
+async def delete_review_item(
+    item_id: str,
+    assistant_id: str = Query("data_structures"),
+):
+    """Delete a review item."""
+    assistant = get_assistant(assistant_id)
+    assistant.review_store.delete_item(item_id)
+    return {"message": "Review item deleted", "item_id": item_id}
+
+
+@app.post("/api/reviews/{item_id}/archive")
+async def archive_review_item(
+    item_id: str,
+    assistant_id: str = Form("data_structures"),
+):
+    assistant = get_assistant(assistant_id)
+    try:
+        item = assistant.review_store.archive_item(item_id)
+        return {"item": item}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Review item not found")
+
+
+@app.post("/api/reviews/{item_id}/reactivate")
+async def reactivate_review_item(
+    item_id: str,
+    assistant_id: str = Form("data_structures"),
+):
+    assistant = get_assistant(assistant_id)
+    try:
+        item = assistant.review_store.reactivate_item(item_id)
+        return {"item": item}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Review item not found")
+
+
+@app.post("/api/reviews/{item_id}/grade")
+async def grade_review_item(
+    item_id: str,
+    assistant_id: str = Form("data_structures"),
+    user_response_json: str = Form(...),
+    api_key: str = Form(""),
+):
+    """Grade a review item, update SRS, and mark the entry done in today's queue.
+
+    Per PRD Q20, api_key is optional: self_rating in user_response is allowed
+    even when no key is configured.
+    """
+    assistant = get_assistant(assistant_id)
+    try:
+        item = assistant.review_store.get_item(item_id)
+        user_response = json.loads(user_response_json)
+        if not isinstance(user_response, dict):
+            raise ValueError("user_response_json must be an object.")
+        grade_result = await assistant.review_engine.grade_item(api_key, item, user_response)
+        score = float(grade_result.get("score", 0))
+        assistant.review_engine.apply_grade(item, score)
+        assistant.review_store.update_item(item_id, srs=item["srs"])
+
+        # Update today's queue progress.
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        queue = assistant.review_store.load_daily_queue(today)
+        if queue is not None:
+            for entry in queue.get("entries", []):
+                if entry.get("item_id") == item_id:
+                    entry["status"] = "done"
+                    entry["grade"] = score
+                    entry["graded_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            assistant.review_store.save_daily_queue(today, queue)
+
+        return {"grade": grade_result, "item": item}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Review item not found")
+    except (json.JSONDecodeError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Grading failed: {str(e)}")
 
 
 if __name__ == "__main__":

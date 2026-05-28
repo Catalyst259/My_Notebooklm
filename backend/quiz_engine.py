@@ -1,9 +1,9 @@
-import json
-import re
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from openai import AsyncOpenAI
+
+from llm_grading import grade_subjective_items, extract_choice_letter
 
 
 class QuizEngine:
@@ -38,6 +38,8 @@ class QuizEngine:
 
     @staticmethod
     def _extract_json(text: str) -> Dict[str, Any]:
+        import json
+        import re
         cleaned = text.strip()
         cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
         cleaned = re.sub(r"\s*```$", "", cleaned)
@@ -156,8 +158,8 @@ class QuizEngine:
             qtype = q.get("type")
 
             if qtype == "single_choice":
-                correct_letter = self._choice_letter(answer)
-                user_letter = self._choice_letter(user_answer)
+                correct_letter = extract_choice_letter(answer)
+                user_letter = extract_choice_letter(user_answer)
                 is_correct = bool(correct_letter and user_letter and correct_letter == user_letter)
                 direct_results.append({
                     "question_id": qid,
@@ -177,7 +179,7 @@ class QuizEngine:
 
         subjective_results = []
         if subjective_items:
-            subjective_results = await self._grade_subjective(api_key, subjective_items)
+            subjective_results = await grade_subjective_items(api_key, subjective_items)
 
         by_id = {r["question_id"]: r for r in direct_results + subjective_results}
         ordered = []
@@ -197,55 +199,3 @@ class QuizEngine:
             "max_score": len(questions),
             "results": ordered,
         }
-
-    @staticmethod
-    def _choice_letter(text: str) -> Optional[str]:
-        match = re.search(r"\b([A-D])\b", text.upper())
-        return match.group(1) if match else None
-
-    async def _grade_subjective(self, api_key: str, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        prompt = f"""
-请为以下测验答案评分。每题满分 1 分，可以给 0、0.5 或 1。
-只输出合法 JSON，不要输出 Markdown。
-
-输入:
-{json.dumps(items, ensure_ascii=False)}
-
-输出结构:
-{{
-  "results": [
-    {{
-      "question_id": "q1",
-      "score": 0,
-      "is_correct": false,
-      "feedback": "简短中文反馈",
-      "reference_answer": "参考答案"
-    }}
-  ]
-}}
-"""
-        client = AsyncOpenAI(api_key=api_key, base_url="https://api.deepseek.com")
-        completion = await client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[
-                {"role": "system", "content": "你是严格但鼓励学生的中文助教，只输出 JSON。"},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.2,
-            max_tokens=2048,
-        )
-        raw = completion.choices[0].message.content or ""
-        payload = self._extract_json(raw)
-        results = payload.get("results", [])
-        normalized = []
-        for r in results:
-            score = float(r.get("score", 0))
-            score = max(0, min(score, 1))
-            normalized.append({
-                "question_id": str(r.get("question_id", "")),
-                "score": score,
-                "is_correct": bool(r.get("is_correct", score >= 0.8)),
-                "feedback": str(r.get("feedback", "")),
-                "reference_answer": str(r.get("reference_answer", "")),
-            })
-        return normalized

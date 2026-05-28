@@ -102,6 +102,7 @@ class MindMapManager {
         document.getElementById('assistantSelectionView').classList.remove('active');
         document.getElementById('chatView').classList.remove('active');
         document.getElementById('quizView').classList.remove('active');
+        document.getElementById('reviewView').classList.remove('active');
         document.getElementById('mindmapView').classList.add('active');
         if (window.app) app.setBodyMode('mindmap');
         await this.refreshList();
@@ -373,6 +374,7 @@ class MindMapManager {
             { label: 'AI 扩展（添加 4 个子节点）', icon: 'auto_awesome', action: () => this.expandNode(nodeId, 4) },
             { label: 'AI 生成笔记', icon: 'edit_note', action: () => this.generateNote(nodeId) },
             { label: '查看/编辑笔记', icon: 'visibility', action: () => this._showNotePanel(nodeId) },
+            { label: '加入复习', icon: 'event_repeat', action: () => this.addNodeToReview(nodeId) },
         ];
         if (!isRoot) {
             items.push({ label: '删除子树', icon: 'delete', action: () => this._deleteNode(nodeId), danger: true });
@@ -793,6 +795,14 @@ class MindMapManager {
     _hideNotePanel() {
         this.openNoteNodeId = null;
         document.getElementById('mindmapNotePanel').style.display = 'none';
+    }
+
+    addNodeToReview(nodeId) {
+        const node = this.jm.get_node(nodeId);
+        if (!node || !window.reviewManager) return;
+        const path = this._pathToRoot(node).join(' > ');
+        const content = (node.data && node.data.note) || node.topic || '';
+        reviewManager.openDraftModal(content, `来自思维导图节点：${path}`);
     }
 
     _refreshNotePanel() {
