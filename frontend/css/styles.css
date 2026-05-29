@@ -604,6 +604,20 @@ body.is-quiz-fullscreen .app-shell {
 .icon-btn--sm { width: 28px; height: 28px; }
 .icon-btn--sm .material-symbols-outlined { font-size: 18px; }
 
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px 4px 6px;
+    border-radius: var(--r-full);
+    color: var(--text-dim);
+    font-size: 0.875rem;
+    white-space: nowrap;
+    transition: background var(--t-fast), color var(--t-fast);
+}
+.back-link:hover { background: var(--panel-hover); color: var(--text); }
+.back-link .material-symbols-outlined { font-size: 18px; }
+
 /* =========================================================================
  * Upload Zone
  * ========================================================================= */

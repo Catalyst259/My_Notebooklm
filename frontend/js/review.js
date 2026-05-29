@@ -10,6 +10,7 @@ class ReviewManager {
 
     init() {
         document.getElementById('openReviewBtn')?.addEventListener('click', () => this.show());
+        document.getElementById('reviewBackBtn')?.addEventListener('click', () => chatManager.showChatView());
         document.getElementById('reviewTabToday')?.addEventListener('click', () => this.switchTab('today'));
         document.getElementById('reviewTabAll')?.addEventListener('click', () => this.switchTab('all'));
         document.getElementById('cancelReviewDraftBtn')?.addEventListener('click', () => this.closeDraftModal());

@@ -185,13 +185,15 @@ class QuizEngine:
         ordered = []
         for q in questions:
             qid = str(q.get("id", ""))
-            ordered.append(by_id.get(qid, {
+            r = by_id.get(qid, {
                 "question_id": qid,
                 "score": 0,
                 "is_correct": False,
                 "feedback": "未能评分。",
                 "reference_answer": q.get("answer", ""),
-            }))
+            })
+            r["user_answer"] = str(answers.get(qid, "")).strip()
+            ordered.append(r)
 
         total = sum(float(r.get("score", 0)) for r in ordered)
         return {

@@ -82,6 +82,7 @@ class MindMapManager {
         byId('mindmapCancelAiBtn')?.addEventListener('click', () => this.cancelStream());
         byId('mindmapExportBtn')?.addEventListener('click', () => this.exportMarkdown());
         byId('mindmapCopyBtn')?.addEventListener('click', () => this.copyMarkdown());
+        byId('mindmapBackBtn')?.addEventListener('click', () => chatManager.showChatView());
 
         byId('mindmapNoteCloseBtn')?.addEventListener('click', () => this._hideNotePanel());
         byId('mindmapNoteAiBtn')?.addEventListener('click', () => this.generateNoteForSelected());
