@@ -370,6 +370,7 @@ class MindMapManager {
         menu.style.left = `${x}px`;
         menu.style.top = `${y}px`;
         const items = [
+            { label: '学习此节点', icon: 'school', action: () => this.learnNode(nodeId) },
             { label: '重命名节点', icon: 'edit', action: () => this._editNodeTopic(nodeId) },
             { label: '添加子节点', icon: 'add', action: () => this._addChildNode(nodeId) },
             { label: 'AI 扩展（添加 4 个子节点）', icon: 'auto_awesome', action: () => this.expandNode(nodeId, 4) },
@@ -798,6 +799,26 @@ class MindMapManager {
         document.getElementById('mindmapNotePanel').style.display = 'none';
     }
 
+    // Send this node's subtree (topic + note + descendants) to chat as a
+    // question and auto-fire the request. Reuses chatManager.sendMessage.
+    learnNode(nodeId) {
+        if (this.streaming) { showToast('思维导图 AI 正在生成，请稍候', 'warning'); return; }
+        if (window.chatManager && chatManager.isStreaming) {
+            showToast('请等待当前回复完成', 'warning');
+            return;
+        }
+        const node = this.jm.get_node(nodeId);
+        if (!node) return;
+        const lines = [];
+        this._walkMarkdown(node, 0, lines);
+        const md = lines.join('\n');
+        const prefix = '请围绕以下思维导图节点的内容为我讲解，并补充我笔记中遗漏的要点：';
+        chatManager.showChatView();
+        const input = document.getElementById('chatInput');
+        input.value = `${prefix}\n\n${md}`;
+        chatManager.sendMessage();
+    }
+
     addNodeToReview(nodeId) {
         const node = this.jm.get_node(nodeId);
         if (!node || !window.reviewManager) return;
@@ -841,23 +862,26 @@ class MindMapManager {
 
     // ----- export -----
 
+    // Append a node's markdown (topic + note + descendants) into `lines`,
+    // indented relative to `depth`. Shared by export and the learn action.
+    _walkMarkdown(node, depth, lines) {
+        const indent = '  '.repeat(depth);
+        lines.push(`${indent}- ${node.topic}`);
+        const note = node.data && node.data.note;
+        if (note) {
+            const noteIndent = '  '.repeat(depth + 1);
+            for (const ln of String(note).split(/\r?\n/)) {
+                lines.push(`${noteIndent}> ${ln}`);
+            }
+        }
+        for (const c of (node.children || [])) this._walkMarkdown(c, depth + 1, lines);
+    }
+
     _serializeToMarkdown() {
         if (!this.jm) return '';
         const root = this.jm.get_root();
         const lines = [`# ${this.currentMap?.title || root.topic}`, ''];
-        const walk = (node, depth) => {
-            const indent = '  '.repeat(depth);
-            lines.push(`${indent}- ${node.topic}`);
-            const note = node.data && node.data.note;
-            if (note) {
-                const noteIndent = '  '.repeat(depth + 1);
-                for (const ln of String(note).split(/\r?\n/)) {
-                    lines.push(`${noteIndent}> ${ln}`);
-                }
-            }
-            for (const c of (node.children || [])) walk(c, depth + 1);
-        };
-        walk(root, 0);
+        this._walkMarkdown(root, 0, lines);
         return lines.join('\n');
     }
 
