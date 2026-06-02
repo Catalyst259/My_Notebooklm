@@ -513,12 +513,24 @@ class ChatManager {
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
 
-        formatted = formatted.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-            return `<pre><code>${code.trim()}</code></pre>`;
-        });
-        formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+        // Stash code behind placeholders so markdown/heading passes don't touch
+        // its contents (e.g. `#include`, `#define` must not become headings).
+        const blocks = [];
+        const stash = (html) => `@@MD${blocks.push(html) - 1}@@`;
+
+        formatted = formatted.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) =>
+            stash(`<pre><code>${code.trim()}</code></pre>`));
+        formatted = formatted.replace(/`([^`]+)`/g, (match, code) => stash(`<code>${code}</code>`));
+
         formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        // headings — `[ \t]*` tolerates the missing space in CJK output like ##结论先行
+        formatted = formatted.replace(/^(#{1,6})[ \t]*(.+)$/gm, (m, hashes, text) =>
+            `<h${hashes.length}>${text.trim()}</h${hashes.length}>`);
         formatted = formatted.replace(/\n/g, '<br>');
+        formatted = formatted.replace(/(<\/h[1-6]>)<br>/g, '$1');
+
+        // Restore stashed code.
+        formatted = formatted.replace(/@@MD(\d+)@@/g, (m, i) => blocks[i]);
         return formatted;
     }
 
