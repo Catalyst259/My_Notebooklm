@@ -27,6 +27,8 @@ from mindmap_engine import MindMapEngine
 from review_store import ReviewStore
 from review_engine import ReviewEngine
 from llm_grading import _extract_json as _llm_extract_json
+from user_stats import UserStatsStore
+from quiz_history import QuizHistoryStore
 
 # --- Paths ---
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -36,6 +38,8 @@ SESSIONS_BASE_DIR = os.path.join(BASE_DIR, 'data', 'sessions')
 MEMORY_BASE_DIR = os.path.join(BASE_DIR, 'data', 'memory')
 MINDMAPS_BASE_DIR = os.path.join(BASE_DIR, 'data', 'mindmaps')
 REVIEWS_BASE_DIR = os.path.join(BASE_DIR, 'data', 'reviews')
+QUIZ_HISTORY_BASE_DIR = os.path.join(BASE_DIR, 'data', 'quiz_history')
+USER_STATS_PATH = os.path.join(BASE_DIR, 'data')
 ASSISTANTS_CONFIG_PATH = os.path.join(BASE_DIR, 'data', 'assistants_config.json')
 os.makedirs(UPLOAD_BASE_DIR, exist_ok=True)
 os.makedirs(VECTOR_STORE_BASE_DIR, exist_ok=True)
@@ -43,6 +47,7 @@ os.makedirs(SESSIONS_BASE_DIR, exist_ok=True)
 os.makedirs(MEMORY_BASE_DIR, exist_ok=True)
 os.makedirs(MINDMAPS_BASE_DIR, exist_ok=True)
 os.makedirs(REVIEWS_BASE_DIR, exist_ok=True)
+os.makedirs(QUIZ_HISTORY_BASE_DIR, exist_ok=True)
 
 # --- Default Assistant Configuration (seed for first run) ---
 _DEFAULT_ASSISTANTS = {
@@ -147,6 +152,10 @@ class AssistantInstance:
 
 # Shared memory store across assistants (one file per assistant_id).
 memory_store = MemoryStore(MEMORY_BASE_DIR)
+
+# Global stores for streak and quiz history
+user_stats_store = UserStatsStore(USER_STATS_PATH)
+quiz_history_store = QuizHistoryStore(QUIZ_HISTORY_BASE_DIR)
 
 
 # Initialize all assistants
@@ -326,7 +335,8 @@ async def chat(
     message: str = Form(...),
     api_key: str = Form(...),
     assistant_id: str = Form("data_structures"),
-    session_id: str = Form("")
+    session_id: str = Form(""),
+    client_date: str = Form("")
 ):
     """
     Chat endpoint with streaming response for a specific assistant.
@@ -357,6 +367,9 @@ async def chat(
 
     # Persist user turn immediately (so a mid-stream disconnect still records the question).
     store.append_message(session_id, "user", message)
+
+    if client_date:
+        user_stats_store.record_activity(client_date)
 
     client = AsyncOpenAI(
         api_key=api_key,
@@ -776,7 +789,9 @@ async def grade_quiz(
     api_key: str = Form(...),
     assistant_id: str = Form("data_structures"),
     questions_json: str = Form(...),
-    answers_json: str = Form(...)
+    answers_json: str = Form(...),
+    client_date: str = Form(""),
+    difficulty: str = Form("medium")
 ):
     """Grade a submitted quiz. Auto-enroll wrong items into review."""
     if not api_key:
@@ -788,6 +803,19 @@ async def grade_quiz(
         if not isinstance(questions, list) or not isinstance(answers, dict):
             raise ValueError("Invalid quiz payload.")
         grade_result = await assistant.quiz_engine.grade(api_key, questions, answers)
+
+        # Record quiz history and activity
+        if client_date:
+            results_list = grade_result.get("results", [])
+            if results_list:
+                avg_score = sum(float(r.get("score", 0)) for r in results_list) / len(results_list)
+                quiz_history_store.append(assistant_id, {
+                    "date": client_date,
+                    "score": round(avg_score, 4),
+                    "count": len(results_list),
+                    "difficulty": difficulty,
+                })
+            user_stats_store.record_activity(client_date)
 
         # Auto-enroll wrong items (score < 0.8) into review.
         for i, q in enumerate(questions):
@@ -922,6 +950,10 @@ async def delete_assistant(
     reviews_dir = os.path.join(REVIEWS_BASE_DIR, assistant_id)
     if os.path.exists(reviews_dir):
         shutil.rmtree(reviews_dir)
+
+    quiz_history_dir = os.path.join(QUIZ_HISTORY_BASE_DIR, assistant_id)
+    if os.path.exists(quiz_history_dir):
+        shutil.rmtree(quiz_history_dir)
 
     memory_store.delete(assistant_id)
 
@@ -1112,6 +1144,7 @@ async def grade_review_item(
     assistant_id: str = Form("data_structures"),
     user_response_json: str = Form(...),
     api_key: str = Form(""),
+    client_date: str = Form(""),
 ):
     """Grade a review item, update SRS, and mark the entry done in today's queue.
 
@@ -1128,6 +1161,9 @@ async def grade_review_item(
         score = float(grade_result.get("score", 0))
         assistant.review_engine.apply_grade(item, score)
         assistant.review_store.update_item(item_id, srs=item["srs"])
+
+        if client_date:
+            user_stats_store.record_activity(client_date)
 
         # Update today's queue progress.
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -1147,6 +1183,49 @@ async def grade_review_item(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Grading failed: {str(e)}")
+
+
+@app.get("/api/stats/user")
+async def get_user_stats():
+    """Global streak and activity log."""
+    return user_stats_store.get_stats()
+
+
+@app.get("/api/stats/dashboard/{assistant_id}")
+async def get_dashboard_stats(
+    assistant_id: str,
+    date: str = Query(""),
+):
+    """Dashboard data for one assistant: quiz history, review completion rate, KB stats."""
+    assistant = get_assistant(assistant_id)
+
+    quiz_records = quiz_history_store.get_recent(assistant_id, n=10)
+
+    # Review completion rate for today
+    review_date = date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    queue = assistant.review_store.load_daily_queue(review_date)
+    review_rate: Optional[float] = None
+    review_done = 0
+    review_total = 0
+    if queue is not None:
+        entries = queue.get("entries", [])
+        review_total = len(entries)
+        review_done = sum(1 for e in entries if e.get("status") == "done")
+        review_rate = round(review_done / review_total, 4) if review_total > 0 else 0.0
+
+    kb_stats = assistant.knowledge_base.get_stats()
+
+    return {
+        "assistant_id": assistant_id,
+        "quiz_history": quiz_records,
+        "review": {
+            "date": review_date,
+            "total": review_total,
+            "done": review_done,
+            "rate": review_rate,
+        },
+        "kb": kb_stats,
+    }
 
 
 if __name__ == "__main__":

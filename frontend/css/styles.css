@@ -1320,3 +1320,198 @@ jmnodes { color: var(--text); }
     .selection-title { font-size: var(--fs-xl); }
     .assistant-cards { grid-template-columns: 1fr; }
 }
+
+/* =========================================================================
+ * Stats View
+ * ========================================================================= */
+.stats-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.stats-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--sp-5) var(--sp-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-5);
+    max-width: 760px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* Streak card */
+.stats-streak-card {
+    background: linear-gradient(135deg, rgba(138,180,248,0.12), rgba(138,180,248,0.04));
+    border: 1px solid rgba(138,180,248,0.25);
+    border-radius: var(--r-card);
+    padding: var(--sp-5) var(--sp-6);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-5);
+}
+
+.streak-flame {
+    font-size: 40px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.streak-info {
+    flex: 1;
+}
+
+.streak-current {
+    font-size: 48px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+}
+
+.streak-label {
+    color: var(--text-dim);
+    font-size: var(--fs-sm);
+    margin-top: var(--sp-1);
+}
+
+.streak-max-wrap {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.streak-max-label {
+    font-size: var(--fs-xs);
+    color: var(--text-mute);
+}
+
+.streak-max-val {
+    font-size: var(--fs-xl);
+    font-weight: 600;
+    color: var(--text-dim);
+}
+
+/* Generic stat card */
+.stats-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    padding: var(--sp-5);
+}
+
+.stats-card__title {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: var(--sp-4);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Heatmap */
+.stats-heatmap {
+    display: grid;
+    grid-template-columns: repeat(28, 1fr);
+    gap: 3px;
+}
+
+.heatmap-cell {
+    aspect-ratio: 1;
+    border-radius: 2px;
+    background: var(--panel-elev);
+    cursor: default;
+    transition: opacity var(--t-fast);
+}
+
+.heatmap-cell[data-level="0"] { background: var(--panel-elev); }
+.heatmap-cell[data-level="1"] { background: rgba(138,180,248,0.20); }
+.heatmap-cell[data-level="2"] { background: rgba(138,180,248,0.40); }
+.heatmap-cell[data-level="3"] { background: rgba(138,180,248,0.65); }
+.heatmap-cell[data-level="4"] { background: var(--accent); }
+
+/* Chart */
+.stats-chart-wrap {
+    height: 180px;
+    position: relative;
+}
+
+.stats-empty {
+    color: var(--text-mute);
+    font-size: var(--fs-sm);
+    text-align: center;
+    padding: var(--sp-6) 0;
+}
+
+/* Review rate */
+.stats-review-rate {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+}
+
+.rate-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+}
+
+.rate-bar-bg {
+    flex: 1;
+    height: 10px;
+    background: var(--panel-elev);
+    border-radius: var(--r-full);
+    overflow: hidden;
+}
+
+.rate-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: var(--r-full);
+    transition: width 0.4s ease;
+    width: 0%;
+}
+
+.rate-text {
+    font-size: var(--fs-md);
+    font-weight: 600;
+    color: var(--accent);
+    min-width: 44px;
+    text-align: right;
+}
+
+.rate-detail {
+    font-size: var(--fs-sm);
+    color: var(--text-dim);
+}
+
+/* KB grid */
+.stats-kb-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--sp-3);
+}
+
+.kb-stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-1);
+    padding: var(--sp-3);
+    background: var(--panel-elev);
+    border-radius: var(--r-small);
+}
+
+.kb-stat-val {
+    font-size: var(--fs-xl);
+    font-weight: 700;
+    color: var(--text);
+}
+
+.kb-stat-label {
+    font-size: var(--fs-xs);
+    color: var(--text-mute);
+}

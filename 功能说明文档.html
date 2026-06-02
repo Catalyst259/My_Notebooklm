@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多学科学习助手 · 全功能说明文档</title>
+<style>
+  :root{
+    --bg:#f6f7fb;
+    --panel:#ffffff;
+    --ink:#1f2430;
+    --ink-soft:#4b5366;
+    --muted:#8a93a6;
+    --line:#e6e9f2;
+    --brand:#4f46e5;
+    --brand-2:#7c6cf0;
+    --accent-green:#059669;
+    --accent-amber:#d97706;
+    --accent-red:#dc2626;
+    --code-bg:#0f172a;
+    --code-ink:#e2e8f0;
+    --chip-bg:#eef0fb;
+    --radius:14px;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);
+    --maxw:920px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    line-height:1.75;
+    font-size:16px;
+    -webkit-font-smoothing:antialiased;
+  }
+  code,pre,.mono{
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  }
+
+  /* ===== Layout ===== */
+  .layout{
+    display:grid;
+    grid-template-columns:280px minmax(0,1fr);
+    gap:0;
+    max-width:1280px;
+    margin:0 auto;
+  }
+  .sidebar{
+    position:sticky;
+    top:0;
+    align-self:start;
+    height:100vh;
+    overflow-y:auto;
+    padding:32px 22px;
+    border-right:1px solid var(--line);
+    background:linear-gradient(180deg,#fbfbff,#f4f5fb);
+  }
+  .content{
+    padding:56px 48px 120px;
+    max-width:calc(var(--maxw) + 96px);
+  }
+
+  /* ===== Sidebar ===== */
+  .brand-mini{
+    display:flex;align-items:center;gap:10px;
+    margin-bottom:26px;
+  }
+  .brand-mini .dot{
+    width:34px;height:34px;border-radius:9px;
+    background:linear-gradient(135deg,var(--brand),var(--brand-2));
+    display:grid;place-items:center;color:#fff;font-size:18px;
+    box-shadow:0 6px 16px rgba(79,70,229,.35);
+  }
+  .brand-mini b{font-size:15px;letter-spacing:.2px}
+  .brand-mini span{display:block;font-size:11px;color:var(--muted);font-weight:400}
+  .toc-title{
+    font-size:11px;text-transform:uppercase;letter-spacing:1.5px;
+    color:var(--muted);margin:0 0 12px;font-weight:700;
+  }
+  .toc{list-style:none;margin:0;padding:0;counter-reset:toc}
+  .toc>li>a{
+    counter-increment:toc;
+  }
+  .toc a{
+    display:block;
+    text-decoration:none;
+    color:var(--ink-soft);
+    font-size:13.5px;
+    padding:7px 12px;
+    border-radius:8px;
+    border-left:2px solid transparent;
+    transition:all .15s;
+  }
+  .toc>li>a::before{
+    content:counter(toc) ". ";
+    color:var(--brand);font-weight:700;
+  }
+  .toc a:hover{background:var(--chip-bg);color:var(--brand)}
+  .toc .sub{list-style:none;margin:2px 0 6px;padding:0}
+  .toc .sub a{
+    font-size:12.5px;color:var(--muted);padding:5px 12px 5px 22px;
+  }
+  .toc .sub a::before{content:"– ";color:var(--brand-2)}
+
+  /* ===== Hero ===== */
+  .hero{
+    background:linear-gradient(135deg,#4f46e5,#6d5cf0 55%,#8b5cf6);
+    color:#fff;
+    border-radius:20px;
+    padding:42px 44px;
+    margin-bottom:40px;
+    box-shadow:0 18px 40px rgba(79,70,229,.28);
+    position:relative;overflow:hidden;
+  }
+  .hero::after{
+    content:"";position:absolute;right:-60px;top:-60px;
+    width:240px;height:240px;border-radius:50%;
+    background:radial-gradient(circle,rgba(255,255,255,.18),transparent 70%);
+  }
+  .hero h1{margin:0 0 14px;font-size:30px;line-height:1.3;letter-spacing:.3px}
+  .hero p{margin:6px 0;font-size:15px;color:rgba(255,255,255,.92);max-width:680px}
+  .hero .tags{margin-top:20px;display:flex;flex-wrap:wrap;gap:9px}
+  .hero .tags span{
+    background:rgba(255,255,255,.16);
+    border:1px solid rgba(255,255,255,.25);
+    padding:5px 13px;border-radius:999px;font-size:12.5px;font-weight:500;
+    backdrop-filter:blur(4px);
+  }
+
+  /* ===== Headings ===== */
+  h2.sec{
+    font-size:23px;
+    margin:54px 0 18px;
+    padding-bottom:12px;
+    border-bottom:2px solid var(--line);
+    display:flex;align-items:center;gap:14px;
+    scroll-margin-top:24px;
+  }
+  h2.sec .num{
+    flex:none;
+    width:36px;height:36px;border-radius:10px;
+    background:var(--brand);color:#fff;
+    display:grid;place-items:center;font-size:16px;font-weight:700;
+    box-shadow:0 6px 14px rgba(79,70,229,.3);
+  }
+  h3{font-size:18px;margin:34px 0 12px;color:var(--ink);scroll-margin-top:24px}
+  h4{font-size:15px;margin:22px 0 8px;color:var(--brand);font-weight:700}
+  p{margin:12px 0;color:var(--ink-soft)}
+  strong{color:var(--ink);font-weight:650}
+  a.inline{color:var(--brand);text-decoration:none;border-bottom:1px dashed var(--brand-2)}
+  a.inline:hover{background:var(--chip-bg)}
+
+  /* ===== Tables ===== */
+  .table-wrap{overflow-x:auto;margin:18px 0;border-radius:var(--radius);box-shadow:var(--shadow)}
+  table{border-collapse:collapse;width:100%;background:var(--panel);font-size:14px}
+  thead th{
+    background:#f0f1fa;
+    color:var(--ink);
+    text-align:left;
+    padding:12px 16px;
+    font-weight:700;
+    border-bottom:2px solid var(--line);
+    white-space:nowrap;
+  }
+  tbody td{padding:11px 16px;border-bottom:1px solid var(--line);color:var(--ink-soft);vertical-align:top}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#fafbff}
+  td code,th code{font-size:12.5px}
+
+  /* ===== Inline code & code blocks ===== */
+  code{
+    background:var(--chip-bg);
+    color:#4338ca;
+    padding:2px 7px;border-radius:6px;font-size:13px;
+  }
+  pre{
+    background:var(--code-bg);
+    color:var(--code-ink);
+    padding:20px 22px;
+    border-radius:var(--radius);
+    overflow-x:auto;
+    font-size:13px;
+    line-height:1.6;
+    margin:18px 0;
+    box-shadow:var(--shadow);
+  }
+  pre code{background:none;color:inherit;padding:0;font-size:13px}
+  pre.ascii{
+    background:#101626;
+    color:#9fe7c6;
+    line-height:1.45;
+  }
+
+  /* ===== Callout / blockquote ===== */
+  blockquote{
+    margin:20px 0;
+    padding:16px 20px;
+    background:linear-gradient(90deg,#eef0fb,#f6f7ff);
+    border-left:4px solid var(--brand);
+    border-radius:0 12px 12px 0;
+    color:var(--ink-soft);
+    font-size:14.5px;
+  }
+  blockquote strong{color:var(--brand)}
+
+  /* ===== Cards (assistant overview) ===== */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin:20px 0}
+  .card{
+    background:var(--panel);border-radius:var(--radius);padding:18px 18px 16px;
+    box-shadow:var(--shadow);border-top:4px solid var(--c,#4f46e5);
+  }
+  .card h5{margin:0 0 4px;font-size:15px;color:var(--ink)}
+  .card .id{font-size:11.5px;color:var(--muted)}
+  .card p{font-size:12.5px;margin:8px 0 0;line-height:1.6}
+
+  /* ===== Pipeline pills ===== */
+  .pipeline{
+    display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:18px 0;
+  }
+  .pipeline .step{
+    background:var(--panel);border:1px solid var(--line);border-radius:999px;
+    padding:8px 16px;font-size:13px;font-weight:600;color:var(--ink);box-shadow:var(--shadow);
+  }
+  .pipeline .arrow{color:var(--brand);font-weight:700;font-size:16px}
+
+  /* ===== Footer ===== */
+  .footer{
+    margin-top:60px;padding-top:24px;border-top:1px solid var(--line);
+    color:var(--muted);font-size:13px;text-align:center;font-style:italic;
+  }
+
+  .anchor{position:relative;top:-10px}
+
+  /* ===== Responsive ===== */
+  @media(max-width:880px){
+    .layout{grid-template-columns:1fr}
+    .sidebar{display:none}
+    .content{padding:32px 20px 80px}
+    .hero{padding:30px 24px}
+    .hero h1{font-size:24px}
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="brand-mini">
+      <div class="dot">📚</div>
+      <b>多学科学习助手<span>全功能说明文档</span></b>
+    </div>
+    <p class="toc-title">目录导航</p>
+    <ul class="toc">
+      <li><a href="#sec1">核心学习循环机制</a></li>
+      <li><a href="#sec2">学习助手层</a></li>
+      <li><a href="#sec3">资料上传层</a></li>
+      <li><a href="#sec4">提问与解答（RAG 对话引擎）</a></li>
+      <li><a href="#sec5">工作室层 · 五大模块</a>
+        <ul class="sub">
+          <li><a href="#sec5-1">测验与巩固</a></li>
+          <li><a href="#sec5-2">思维导图与结构化</a></li>
+          <li><a href="#sec5-3">复习与间隔重复</a></li>
+          <li><a href="#sec5-4">学习统计与正反馈</a></li>
+          <li><a href="#sec5-5">长期备忘</a></li>
+        </ul>
+      </li>
+      <li><a href="#sec6">提示词工程与效果保障</a></li>
+      <li><a href="#sec7">技术架构总览</a></li>
+      <li><a href="#sec8">完整 API 清单</a></li>
+    </ul>
+  </aside>
+
+  <!-- ============ CONTENT ============ -->
+  <main class="content">
+
+    <!-- HERO -->
+    <header class="hero">
+      <h1>多学科学习助手 · 全功能说明文档</h1>
+      <p>一个以 <strong style="color:#fff">RAG（检索增强生成）</strong> 为核心的多学科学习平台。</p>
+      <p>后端 FastAPI + 多语言向量检索（FAISS + sentence-transformers），前端纯 JavaScript 单页应用，LLM 由 DeepSeek（<code style="background:rgba(255,255,255,.18);color:#fff">deepseek-chat</code>）驱动。</p>
+      <p>本文档覆盖平台的<strong style="color:#fff">全部功能</strong>，并阐明贯穿其中的学习闭环机制。</p>
+      <div class="tags">
+        <span>🔁 自我强化学习闭环</span>
+        <span>🧩 多专科助手</span>
+        <span>🔍 RAG 溯源对话</span>
+        <span>📝 智能测验</span>
+        <span>🧠 可生长思维导图</span>
+        <span>⏰ 间隔重复复习</span>
+        <span>🔥 连续打卡正反馈</span>
+      </div>
+    </header>
+
+    <!-- ============ SECTION 1 ============ -->
+    <h2 class="sec" id="sec1"><span class="num">1</span>核心学习循环机制</h2>
+    <p>平台不是孤立功能的堆砌，而是围绕一条<strong>连续自我强化的学习闭环</strong>设计。四个环节首尾相接，每一环的产出自动成为下一环的输入：</p>
+
+<pre class="ascii">        ┌─────────────────────────────────────────────────────┐
+        │                                                     │
+        ▼                                                     │
+   ① 提问与解答  ───►  ② 测验与巩固  ───►  ③ 思维导图 / 知识结构化
+   (RAG 对话)         (生成 + 评分)         (可编辑、可提问、可复习)
+        ▲                  │                       │
+        │                  │ 错题自动入库            │ 节点一键入库
+        │                  ▼                       ▼
+        └──────────  ④ 复习与连续正反馈  ◄───────────┘
+                    (间隔重复 + 打卡连击)</pre>
+
+    <h4>闭环如何自我驱动</h4>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>环节</th><th>产出</th><th>自动流向下一环</th></tr></thead>
+      <tbody>
+        <tr><td><strong>① 提问与解答</strong></td><td>对话中的疑难点</td><td>任意回答可「加入复习」生成卡片</td></tr>
+        <tr><td><strong>② 测验与巩固</strong></td><td>答错的题目</td><td><strong>错题自动注册为复习项</strong>（评分时即时入库）</td></tr>
+        <tr><td><strong>③ 思维导图</strong></td><td>结构化知识节点</td><td>节点可「加入复习」、可「学习此节点」回到对话</td></tr>
+        <tr><td><strong>④ 复习与连续正反馈</strong></td><td>复习成绩</td><td>反馈调整下次间隔；<strong>打卡连击</strong>形成正反馈，驱动学习者回到 ① 继续提问</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>正反馈的两条强化路径</h4>
+    <p><strong>1. 效果强化（间隔重复）</strong> — 复习引擎根据答题表现动态调整下次复习时间：答对则间隔 ×2.5 拉长，答错则重置为 1 天。错题反复回流直到掌握，确保<strong>学过的不忘</strong>。</p>
+    <p><strong>2. 行为强化（连续打卡）</strong> — 每日学习活动累计为「连续天数」（streak），中断即归零。🔥 连击数 + 28 天活跃热力图给予可见的即时正反馈，驱动学习者<strong>每天回到循环</strong>。</p>
+    <blockquote>这套机制把「知识结构化」彻底融入学习过程——思维导图不是静态产物，而是可编辑、可提问、可复习的活节点，远超 NotebookLM 的只读静态导图。</blockquote>
+
+    <!-- ============ SECTION 2 ============ -->
+    <h2 class="sec" id="sec2"><span class="num">2</span>学习助手层</h2>
+    <p>平台内置 <strong>4 个专科助手</strong>，并支持运行时<strong>动态创建与删除任意数量的自定义助手</strong>。每个助手拥有<strong>完全隔离</strong>的知识库、会话历史、测验、思维导图、复习队列与备忘。</p>
+
+    <h3>2.1 内置助手</h3>
+    <div class="cards">
+      <div class="card" style="--c:#4f46e5">
+        <h5>数据结构与算法</h5><span class="id">data_structures · cpp</span>
+        <p>C++ 线性结构、栈队列、树、图、堆、哈希、排序查找、DP、贪心、回溯</p>
+      </div>
+      <div class="card" style="--c:#059669">
+        <h5>计算机系统</h5><span class="id">computer_systems · c</span>
+        <p>计算机组成、操作系统、体系结构、汇编、编译、网络</p>
+      </div>
+      <div class="card" style="--c:#d97706">
+        <h5>离散数学</h5><span class="id">discrete_math · text</span>
+        <p>逻辑、集合、图论、组合、代数结构、数论、自动机</p>
+      </div>
+      <div class="card" style="--c:#dc2626">
+        <h5>机器学习</h5><span class="id">machine_learning · python</span>
+        <p>监督/无监督/强化学习、深度学习、模型评估、NLP、CV</p>
+      </div>
+    </div>
+
+    <h3>2.2 创建助手</h3>
+    <p>入口：助手选择页「+ 创建助手」按钮（<code>#createAssistantBtn</code>）→ 模态框填写<strong>名称</strong>（≤30 字）与<strong>描述</strong>（≤200 字）。</p>
+    <p>后端 <code>POST /api/assistants/create</code>：</p>
+    <ul>
+      <li>生成唯一 ID：<code>{名称slug}_{6位uuid}</code></li>
+      <li>从 10 色调色板 + 10 图标库随机分配外观</li>
+      <li>调用 <code>build_generic_system_prompt(name, description)</code> <strong>自动生成专属系统提示词</strong></li>
+      <li>配置持久化至 <code>data/assistants_config.json</code>，并即时注册到全局助手表</li>
+    </ul>
+    <p>新助手立即可用，拥有全套独立工作室功能。</p>
+
+    <h3>2.3 删除助手</h3>
+    <p>入口：助手卡片上的删除按钮（<code>.card-delete-btn</code>），二次确认。后端 <code>POST /api/assistants/delete</code>：<strong>级联清除</strong>该助手的全部数据——向量库、上传文件、会话、思维导图、复习项、测验历史、备忘。不可恢复。</p>
+
+    <h3>2.4 提示词调优（Cursor 模版风格）</h3>
+    <ul>
+      <li>系统提示词采用<strong>分层结构</strong>：通用教学基座模板（<code>rag_engine.py</code> 基座）+ 学科专属规则块。</li>
+      <li>提示词工程<strong>借鉴主流 Coding Agent（如 Cursor）提示词模版的设计范式</strong>——明确角色、强约束输出格式、引用溯源、分步教学、苏格拉底式追问限额——以此保障回答的稳定性与教学质量（详见 <a class="inline" href="#sec6">第 6 节</a>）。</li>
+      <li>自定义助手通过名称 + 描述自动套用通用调优模板；专科助手则使用手工精调的学科模板。</li>
+    </ul>
+
+    <!-- ============ SECTION 3 ============ -->
+    <h2 class="sec" id="sec3"><span class="num">3</span>资料上传层</h2>
+
+    <h3>3.1 多文件拖拽统一上传</h3>
+    <ul>
+      <li>拖拽区 <code>#uploadZone</code>：支持<strong>点击选择</strong>或<strong>拖拽放入</strong>。</li>
+      <li><strong>批量多文件</strong>：一次可拖入任意数量文件，按钮实时显示「上传 N 个文件」，通过单次 <code>FormData</code> 统一提交（<code>POST /api/upload</code>，字段 <code>files</code> 多值）。</li>
+      <li>上传后逐文件回显结果（✓ 成功 / ✗ 失败）与切片数，状态如「完成: 3 成功, 1 失败」。</li>
+      <li>上传前做扩展名校验。</li>
+    </ul>
+    <h4>支持格式</h4>
+    <p>文本/代码：<code>.txt</code> <code>.md</code> <code>.py</code> <code>.c</code> <code>.cpp</code> <code>.h</code> <code>.hpp</code><br>文档：<code>.docx</code> <code>.pdf</code></p>
+
+    <h3>3.2 自带多语言小模型执行切片</h3>
+    <p>文件入库由 <code>file_processor.py</code> 完成，<strong>无需外部 API</strong>，本地即可切片：</p>
+    <ol>
+      <li><strong>解析</strong>：按格式提取纯文本（PDF / DOCX / 纯文本）。</li>
+      <li><strong>混合分词</strong>：中文 → <strong>jieba</strong> 分词；代码块（以 <code>```</code> 或 <code>`</code> 界定）→ 空白切分。</li>
+      <li><strong>切片</strong>：<code>CHUNK_SIZE = 512</code> token，<code>CHUNK_OVERLAP = 64</code> token；切片边界<strong>对齐句子/换行</strong>（中文 <code>。！？</code>，英文 <code>.!?</code>），避免语义截断。</li>
+      <li><strong>嵌入</strong>：共享多语言小模型 <code>paraphrase-multilingual-MiniLM-L12-v2</code>（启动时加载一次，全助手复用）将切片向量化。</li>
+      <li><strong>索引</strong>：写入 <strong>FAISS</strong> 向量库（<code>IndexIDMap(IndexFlatIP)</code>，L2 归一化即余弦相似度），元数据（原始文件名、chunk_id）随存。</li>
+    </ol>
+    <blockquote>磁盘文件以 UUID 命名防冲突；原始文件名仅保存在 FAISS 元数据中。每个助手独立向量库位于 <code>data/vector_store/{assistant_id}/</code>。</blockquote>
+
+    <h3>3.3 文件管理</h3>
+    <p><code>GET /api/files</code> 列出已上传文件及元数据；<code>DELETE /api/files/{file_uuid}</code> 删除单文件；<code>POST /api/kb/clear</code> 清空整个知识库。</p>
+
+    <!-- ============ SECTION 4 ============ -->
+    <h2 class="sec" id="sec4"><span class="num">4</span>提问与解答（RAG 对话引擎）</h2>
+    <p>学习闭环的入口环节。</p>
+
+    <h3>4.1 RAG 检索流程</h3>
+    <div class="pipeline">
+      <span class="step">用户提问</span><span class="arrow">→</span>
+      <span class="step">向量检索 top-5 切片</span><span class="arrow">→</span>
+      <span class="step">构建带溯源上下文 ≤4000 字</span><span class="arrow">→</span>
+      <span class="step">拼接系统提示词 + 历史</span><span class="arrow">→</span>
+      <span class="step">DeepSeek 流式生成</span><span class="arrow">→</span>
+      <span class="step">SSE 推送</span>
+    </div>
+    <ul>
+      <li>检索：<code>top_k = 5</code>，上下文上限 <code>4000</code> 字符，按句界截断。</li>
+      <li>上下文格式带<strong>来源标注</strong>：<code>参考片段 N: ... [来源: 文件名]</code>，回答可溯源、防杜撰。</li>
+      <li>LLM：<code>deepseek-chat</code>，<code>temperature=0.7</code>，<code>max_tokens=4096</code>，<strong>SSE 流式输出</strong>（<code>POST /api/chat</code>）。</li>
+    </ul>
+
+    <h3>4.2 多会话管理</h3>
+    <ul>
+      <li>每助手支持<strong>多会话</strong>，独立持久化（<code>data/sessions/{assistant_id}/</code>）。</li>
+      <li>会话标题自动从首条用户消息提炼；支持新建、重命名、删除。</li>
+      <li><code>GET/POST /api/sessions</code>、<code>PATCH/DELETE /api/sessions/{id}</code>。</li>
+    </ul>
+
+    <h3>4.3 历史预算与裁剪</h3>
+    <p><code>token_budget.py</code>：会话历史按 <code>DEFAULT_HISTORY_BUDGET = 6000</code> token 预算，从最新向最旧保留，<strong>始终至少保留最近一条</strong>，防止上下文溢出。</p>
+
+    <h3>4.4 消息级操作</h3>
+    <ul>
+      <li><strong>删除消息对</strong>：成对删除用户+助手回合，保持配对完整（<code>DELETE /api/sessions/{id}/messages/{index}</code>）。</li>
+      <li><strong>重新生成</strong>：对最后一轮重新流式生成（<code>POST /api/sessions/{id}/regenerate</code>）。</li>
+      <li><strong>加入复习</strong>：任意回答一键生成复习卡片，接入闭环（见 5.3）。</li>
+    </ul>
+
+    <!-- ============ SECTION 5 ============ -->
+    <h2 class="sec" id="sec5"><span class="num">5</span>工作室层 · 五大模块</h2>
+    <p>工作室（<code>#studioPanel</code>）聚合测验、思维导图、复习、统计、备忘五大模块，构成<strong>完整学习链条</strong>。</p>
+
+    <h3 id="sec5-1">5.1 测验与巩固</h3>
+    <h4>生成（<code>POST /api/quiz/generate</code>）</h4>
+    <ul>
+      <li>题型：<code>single_choice</code>（单选）、<code>short_answer</code>（简答）、<code>code_reading</code>（读码）、<code>proof</code>（证明），可选「混合」。</li>
+      <li>参数：数量 <code>1–30</code>、难度（easy/medium/hard）、主题（可选）。</li>
+      <li><strong>基于知识库出题</strong>：检索 <code>top_k = 8</code>、上下文上限 <code>5000</code> 字符，题目附带知识点与来源文件；知识库为空时回退到学科通用知识出题。</li>
+      <li>LLM：<code>deepseek-chat</code>，<code>temperature=0.6</code>，仅输出可解析 JSON。</li>
+    </ul>
+    <h4>评分（<code>POST /api/quiz/grade</code>）</h4>
+    <ul>
+      <li><strong>单选</strong>：本地按 A/B/C/D 字母精确匹配，0 或 1 分，<strong>不耗 LLM</strong>。</li>
+      <li><strong>简答/读码/证明</strong>：第二次 LLM 调用评分（<code>temperature=0.2</code>，「严格但鼓励」的助教），分值 ∈ {0, 0.5, 1}，附反馈。</li>
+      <li>总分 = 各题之和，满分 = 题数。</li>
+      <li><strong>闭环关键</strong>：评分时<strong>错题自动注册为复习项</strong>（<code>source.type = "quiz_wrong"</code>），无缝进入复习队列。</li>
+      <li>每次测验结果记入 <code>quiz_history</code>（日期、得分、题数、难度），供统计图表使用。</li>
+    </ul>
+    <p><strong>前端展示</strong>：逐题状态图标（✓/✗/△）、用户答案、参考答案、反馈；得分卡显示百分比与「总分 X / Y」。</p>
+
+    <h3 id="sec5-2">5.2 思维导图与知识结构化</h3>
+    <p>基于 <strong>jsmind</strong> 的<strong>可编辑、可生长、可提问、可复习</strong>的活导图——这是平台超越 NotebookLM 静态导图的核心。</p>
+    <h4>AI 生成与生长（流式）</h4>
+    <ul>
+      <li><strong>生成整树</strong> <code>POST /api/mindmaps/ai/generate-tree</code>：输入主题、深度（<code>1–3</code>）、宽度（<code>2–8</code>），流式生成 Markdown 树并实时渲染。</li>
+      <li><strong>扩展节点</strong> <code>POST /api/mindmaps/ai/expand-node</code>：对任一节点 AI 扩展子节点（默认 4 个，参考兄弟节点上下文）。</li>
+      <li><strong>生成笔记</strong> <code>POST /api/mindmaps/ai/generate-note</code>：为节点流式生成讲解笔记，存入 <code>node.data.note</code>。</li>
+      <li>节点上限 500，支持中途取消（AbortController）。</li>
+    </ul>
+    <h4>节点级交互（右键菜单）</h4>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>操作</th><th>作用</th><th>闭环连接</th></tr></thead>
+      <tbody>
+        <tr><td>学习此节点</td><td>将子树 Markdown 送入对话</td><td>→ 回到<strong>提问解答</strong></td></tr>
+        <tr><td>AI 扩展</td><td>流式生成子节点</td><td>知识自生长</td></tr>
+        <tr><td>AI 生成笔记 / 查看编辑笔记</td><td>节点附带可编辑笔记</td><td>结构化沉淀</td></tr>
+        <tr><td>重命名 / 添加子节点 / 删除子树</td><td>手动编辑结构</td><td>自主掌控</td></tr>
+        <tr><td><strong>加入复习</strong></td><td>由节点生成复习卡片</td><td>→ 接入<strong>复习闭环</strong></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <h4>编辑与持久化</h4>
+    <ul>
+      <li>全程可手动编辑节点；编辑后 <strong>2 秒防抖自动保存</strong>，状态徽标显示「已保存 / 未保存 / 保存中 / 保存失败重试」。</li>
+      <li>多导图管理：新建（空白或 AI）、加载、删除（<code>GET/POST /api/mindmaps</code>、<code>PUT/DELETE /api/mindmaps/{id}</code>）。</li>
+      <li>支持导出 Markdown / 复制到剪贴板。</li>
+      <li>存储：jsmind 标准 JSON，每助手独立（<code>mindmap_store.py</code>）。</li>
+    </ul>
+    <blockquote><strong>对比 NotebookLM</strong>：NotebookLM 的思维导图只读、静态、不可交互。本平台导图可编辑结构、可对节点提问回到对话、可把节点送入复习——把「知识结构化」从结果变成<strong>持续进行的学习动作</strong>。</blockquote>
+
+    <h3 id="sec5-3">5.3 复习与间隔重复</h3>
+    <p><code>review_engine.py</code> 实现 <strong>SM-2 风格间隔重复（SRS）</strong>，是「效果正反馈」的引擎。</p>
+    <h4>复习项来源（三种类型）</h4>
+    <ul>
+      <li><code>mcq</code>（单选）、<code>qa</code>（问答）、<code>card</code>（闪卡）。</li>
+      <li>来源：测验错题（自动）、对话回答、思维导图节点（手动「加入复习」）。</li>
+      <li>每项存<strong>快照</strong> <code>{front, back, answer_key, explanation}</code>——即使原始内容删除仍可复习。</li>
+    </ul>
+    <h4>间隔调度算法</h4>
+    <ul>
+      <li>初始：MCQ/QA 信号 0.5 → 间隔 2 天；其余 → 当天。</li>
+      <li>答对（score ≥ 1.0）：<code>新间隔 = max(1, round(当前间隔 × 2.5))</code>——指数拉长。</li>
+      <li>答错（score &lt; 1.0）：<code>新间隔 = 1</code>——重置次日再练。</li>
+      <li>记录 <code>interval_days / ease(2.5) / next_review / review_count / last_grade</code>。</li>
+    </ul>
+    <h4>今日队列（<code>GET /api/reviews/queue/today</code>）</h4>
+    <ul>
+      <li>取所有 <code>next_review ≤ 今日</code> 的活跃项，<strong>每日上限 20</strong>。</li>
+      <li>优先级排序：测验 0 分错题 &gt; 0.5 分 &gt; 其他错题 &gt; 其余；再按逾期天数、来源权重、创建时间排序。</li>
+    </ul>
+    <h4>复习评分（<code>POST /api/reviews/{id}/grade</code>）</h4>
+    <ul>
+      <li>MCQ：字母精确匹配。</li>
+      <li>QA：有 API key 与作答时 LLM 评分，否则回退 0.5。</li>
+      <li>Card：自评。</li>
+      <li>任意类型均可<strong>自评覆盖</strong>：<code>不会→0.0 / 模糊→0.5 / 会→1.0</code>。</li>
+    </ul>
+    <p><strong>前端流程</strong>：今日/全部双标签；闪卡「查看答案」翻面；自评三按钮；评分后显示反馈与参考答案并自动跳下一条；全部完成显示汇总「今天完成 X · 答对 Y · 模糊 Z · 答错 W」。</p>
+
+    <h3 id="sec5-4">5.4 学习统计与连续正反馈</h3>
+    <p><code>user_stats.py</code> + 统计面板（<code>#statsView</code>），是「行为正反馈」的引擎。</p>
+    <h4>连续打卡（streak）</h4>
+    <ul>
+      <li>每次学习活动按本地日期记录；连续次日 +1，中断归零，刷新历史最长。</li>
+      <li>面板 🔥 显示<strong>当前连击</strong>与<strong>历史最长</strong>（<code>#streakCurrent</code> / <code>#streakMax</code>）。</li>
+    </ul>
+    <h4>活跃热力图</h4>
+    <p>近 <strong>28 天</strong>活动密度，颜色分 0–4 级，悬停显示「日期: N 次活动」。</p>
+    <h4>测验趋势</h4>
+    <p>Chart.js 折线图展示历次测验得分（0–100%），数据来自 <code>quiz_history</code>；无记录显示空状态。</p>
+    <h4>复习完成率</h4>
+    <p>进度条 + 百分比 + 「已完成 X / Y 张」。</p>
+    <h4>知识库概览</h4>
+    <p>文件数、切片数、总 token（≥1000 显示为「1.5k」）。数据接口：<code>GET /api/stats/user</code>、<code>GET /api/stats/dashboard/{assistant_id}</code>、<code>GET /api/stats</code>。</p>
+    <blockquote>可见的连击与热力图把抽象的「坚持」变成即时奖励，形成<strong>驱动学习者每日回到闭环</strong>的正反馈。</blockquote>
+
+    <h3 id="sec5-5">5.5 长期备忘</h3>
+    <p><code>memory_store.py</code>：每助手一份<strong>长期备忘笔记</strong>。</p>
+    <ul>
+      <li>纯文本，上限 <strong>8 KB</strong>（防止膨胀拖累提示词）。</li>
+      <li><strong>关键作用</strong>：备忘内容会<strong>自动前置注入系统提示词</strong>，让助手在所有对话/测验中持续记住学习者的偏好、薄弱点、长期目标。</li>
+      <li>接口：<code>GET /api/memory</code>、<code>PUT /api/memory</code>。</li>
+    </ul>
+
+    <!-- ============ SECTION 6 ============ -->
+    <h2 class="sec" id="sec6"><span class="num">6</span>提示词工程与效果保障</h2>
+    <p>所有 LLM 调用（对话、测验生成、主观评分、思维导图）均由<strong>精心设计的提示词模版</strong>驱动，其设计范式<strong>借鉴主流 Coding Agent（如 Cursor）提示词模版的工程实践</strong>，以保障输出稳定、可控、教学有效：</p>
+    <ul>
+      <li><strong>强角色定义</strong>：每个助手有明确学科身份与教学职责。</li>
+      <li><strong>严格输出契约</strong>：测验/评分强制「只输出可被 <code>json.loads</code> 解析的 JSON」，解析器 <code>_extract_json</code> 兜底剥离 <code>```json</code> 围栏并扫描最外层 <code>{...}</code>。</li>
+      <li><strong>RAG 溯源优先</strong>：优先引用知识库片段并标注来源，无依据时明确说明，杜绝杜撰。</li>
+      <li><strong>分层教学结构</strong>：结论先行 → 解释 → 示例 → 拓展；Markdown + LaTeX 数学排版。</li>
+      <li><strong>节制的苏格拉底式追问</strong>：每轮至多一个开放追问，避免过度引导。</li>
+      <li><strong>学科精调块</strong>：四个内置助手各有专属规则（如计算机系统的分层讲解、离散数学的严格证明、机器学习的张量形状标注）。</li>
+    </ul>
+    <blockquote>这套工程化提示词是「效果保障」的基础——把通用 LLM 约束成稳定、可溯源、面向教学的专科助教。</blockquote>
+
+    <!-- ============ SECTION 7 ============ -->
+    <h2 class="sec" id="sec7"><span class="num">7</span>技术架构总览</h2>
+<pre class="ascii">┌────────────────────── 前端（纯 JS 单页，无构建） ──────────────────────┐
+│ index.html  +  css/styles.css                                          │
+│ js/: api.js · chat.js · quiz.js · mindmap.js · review.js · stats.js     │
+│      upload.js · app.js(最后加载，依赖其余) · vendor/jsmind             │
+│ 视图：assistantSelection / chat / quiz / mindmap / review / stats      │
+└─────────────────────────────────┬──────────────────────────────────────┘
+                                  │ fetch + 手写 SSE 解析（支持 POST 流式）
+┌─────────────────────────────────▼──────────────────────────────────────┐
+│                     后端 FastAPI（backend/app.py）                       │
+│ ┌───────────┬────────────┬───────────┬────────────┬──────────────┐      │
+│ │ rag_engine│ quiz_engine│ mindmap_* │ review_*   │ memory_store │      │
+│ │ file_proc.│ llm_grading│ session_* │ user_stats │ token_budget │      │
+│ └───────────┴────────────┴───────────┴────────────┴──────────────┘      │
+│ 共享嵌入模型（启动加载一次）· 每助手隔离的 FAISS / 会话 / 复习 / 导图    │
+└─────────────────────────────────┬──────────────────────────────────────┘
+        ┌─────────────────────────┴─────────────────────────┐
+        ▼                                                    ▼
+  FAISS 向量库 + JSON 持久化（data/）         DeepSeek API（deepseek-chat）
+                                             + HuggingFace（首次下载嵌入模型）</pre>
+
+    <h4>关键技术参数速查</h4>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>项</th><th>值</th></tr></thead>
+      <tbody>
+        <tr><td>嵌入模型</td><td><code>paraphrase-multilingual-MiniLM-L12-v2</code>（多语言，全助手共享）</td></tr>
+        <tr><td>切片</td><td>512 token / 64 token 重叠，句界对齐</td></tr>
+        <tr><td>分词</td><td>jieba（中文）+ 空白（代码）</td></tr>
+        <tr><td>向量索引</td><td>FAISS <code>IndexIDMap(IndexFlatIP)</code>，L2 归一化</td></tr>
+        <tr><td>对话检索</td><td>top-5，上下文 ≤4000 字</td></tr>
+        <tr><td>测验检索</td><td>top-8，上下文 ≤5000 字</td></tr>
+        <tr><td>历史预算</td><td>6000 token，新→旧裁剪</td></tr>
+        <tr><td>LLM</td><td><code>deepseek-chat</code> @ <code>https://api.deepseek.com</code>（对话 T=0.7 / 测验 T=0.6 / 评分 T=0.2）</td></tr>
+        <tr><td>复习上限</td><td>每日 20，答对间隔 ×2.5、答错重置 1 天</td></tr>
+        <tr><td>备忘上限</td><td>8 KB（注入系统提示词）</td></tr>
+        <tr><td>思维导图</td><td>jsmind，节点上限 500，深 1–3 宽 2–8</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>运行方式</h4>
+<pre><code># 后端（须在 backend/ 目录内运行，app.py 用扁平相对导入）
+cd backend &amp;&amp; python -m pip install -r requirements.txt
+cd backend &amp;&amp; python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+curl http://127.0.0.1:8000/api/health        # 健康检查
+
+# 前端（静态文件服务）
+cd frontend &amp;&amp; python -m http.server 5500     # 访问 http://127.0.0.1:5500</code></pre>
+    <ul>
+      <li>后端地址硬编码于 <code>frontend/js/api.js</code> 的 <code>API_BASE_URL</code>（<code>http://127.0.0.1:8000</code>）。</li>
+      <li>DeepSeek API key 存于浏览器 <code>localStorage</code> 的 <code>deepseek_api_key</code>，由用户自备。</li>
+    </ul>
+
+    <!-- ============ SECTION 8 ============ -->
+    <h2 class="sec" id="sec8"><span class="num">8</span>完整 API 清单</h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>分类</th><th>方法</th><th>路径</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>系统</td><td>GET</td><td><code>/api/health</code></td><td>健康检查</td></tr>
+        <tr><td>助手</td><td>GET</td><td><code>/api/assistants</code></td><td>列出全部助手</td></tr>
+        <tr><td>助手</td><td>POST</td><td><code>/api/assistants/create</code></td><td>创建自定义助手</td></tr>
+        <tr><td>助手</td><td>POST</td><td><code>/api/assistants/delete</code></td><td>删除助手及全部数据</td></tr>
+        <tr><td>知识库</td><td>GET</td><td><code>/api/stats</code></td><td>知识库统计（切片/文件/token）</td></tr>
+        <tr><td>知识库</td><td>POST</td><td><code>/api/upload</code></td><td>多文件上传</td></tr>
+        <tr><td>知识库</td><td>GET</td><td><code>/api/files</code></td><td>文件列表</td></tr>
+        <tr><td>知识库</td><td>DELETE</td><td><code>/api/files/{uuid}</code></td><td>删除单文件</td></tr>
+        <tr><td>知识库</td><td>POST</td><td><code>/api/kb/clear</code></td><td>清空知识库</td></tr>
+        <tr><td>对话</td><td>POST</td><td><code>/api/chat</code></td><td>流式对话（SSE）</td></tr>
+        <tr><td>对话</td><td>POST</td><td><code>/api/clear</code></td><td>清除会话（旧接口）</td></tr>
+        <tr><td>会话</td><td>GET/POST</td><td><code>/api/sessions</code></td><td>列出 / 新建会话</td></tr>
+        <tr><td>会话</td><td>GET/PATCH/DELETE</td><td><code>/api/sessions/{id}</code></td><td>读取 / 重命名 / 删除</td></tr>
+        <tr><td>会话</td><td>DELETE</td><td><code>/api/sessions/{id}/messages/{i}</code></td><td>删除消息对</td></tr>
+        <tr><td>会话</td><td>POST</td><td><code>/api/sessions/{id}/regenerate</code></td><td>重新生成（SSE）</td></tr>
+        <tr><td>备忘</td><td>GET/PUT</td><td><code>/api/memory</code></td><td>读取 / 保存长期备忘</td></tr>
+        <tr><td>导图</td><td>GET/POST</td><td><code>/api/mindmaps</code></td><td>列出 / 新建导图</td></tr>
+        <tr><td>导图</td><td>GET/PUT/DELETE</td><td><code>/api/mindmaps/{id}</code></td><td>读取 / 更新 / 删除</td></tr>
+        <tr><td>导图</td><td>POST</td><td><code>/api/mindmaps/ai/generate-tree</code></td><td>AI 生成整树（SSE）</td></tr>
+        <tr><td>导图</td><td>POST</td><td><code>/api/mindmaps/ai/expand-node</code></td><td>AI 扩展节点（SSE）</td></tr>
+        <tr><td>导图</td><td>POST</td><td><code>/api/mindmaps/ai/generate-note</code></td><td>AI 生成笔记（SSE）</td></tr>
+        <tr><td>测验</td><td>POST</td><td><code>/api/quiz/generate</code></td><td>生成测验</td></tr>
+        <tr><td>测验</td><td>POST</td><td><code>/api/quiz/grade</code></td><td>评分（错题自动入复习）</td></tr>
+        <tr><td>复习</td><td>GET</td><td><code>/api/reviews</code></td><td>复习项列表</td></tr>
+        <tr><td>复习</td><td>GET</td><td><code>/api/reviews/queue/today</code></td><td>今日复习队列</td></tr>
+        <tr><td>复习</td><td>POST</td><td><code>/api/reviews/draft</code></td><td>生成卡片草稿</td></tr>
+        <tr><td>复习</td><td>POST</td><td><code>/api/reviews</code></td><td>新建复习项</td></tr>
+        <tr><td>复习</td><td>GET/PATCH/DELETE</td><td><code>/api/reviews/{id}</code></td><td>读取 / 更新 / 删除</td></tr>
+        <tr><td>复习</td><td>POST</td><td><code>/api/reviews/{id}/archive</code></td><td>归档</td></tr>
+        <tr><td>复习</td><td>POST</td><td><code>/api/reviews/{id}/reactivate</code></td><td>恢复</td></tr>
+        <tr><td>复习</td><td>POST</td><td><code>/api/reviews/{id}/grade</code></td><td>评分并更新 SRS</td></tr>
+        <tr><td>统计</td><td>GET</td><td><code>/api/stats/user</code></td><td>全局连击 + 活动日志</td></tr>
+        <tr><td>统计</td><td>GET</td><td><code>/api/stats/dashboard/{id}</code></td><td>测验/复习/知识库仪表盘</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="footer">
+      本文档依据当前代码库实际实现编写。技术参数（模型名、切片大小、检索 top-k、间隔系数等）均取自源码，可直接核对。
+    </div>
+
+  </main>
+</div>
+</body>
+</html>

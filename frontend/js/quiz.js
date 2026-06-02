@@ -281,6 +281,7 @@ class QuizManager {
         document.getElementById('quizView').classList.add('active');
         document.getElementById('mindmapView').classList.remove('active');
         document.getElementById('reviewView').classList.remove('active');
+        document.getElementById('statsView').classList.remove('active');
         if (window.app) app.setBodyMode('quiz');
     }
 }

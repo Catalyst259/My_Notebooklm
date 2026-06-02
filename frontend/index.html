@@ -173,6 +173,65 @@
                 <div id="reviewTodayPanel" class="review-panel"></div>
                 <div id="reviewAllPanel" class="review-panel" hidden></div>
             </div>
+
+            <!-- Stats View -->
+            <div id="statsView" class="view">
+                <div class="stats-toolbar">
+                    <button id="statsBackBtn" class="back-link" title="返回对话">
+                        <span class="material-symbols-outlined">arrow_back</span>返回对话
+                    </button>
+                    <span class="current-mindmap-title">学习统计</span>
+                </div>
+                <div class="stats-body">
+                    <!-- Streak card -->
+                    <div class="stats-streak-card">
+                        <div class="streak-flame">🔥</div>
+                        <div class="streak-info">
+                            <div class="streak-current" id="streakCurrent">0</div>
+                            <div class="streak-label">连续学习天数</div>
+                        </div>
+                        <div class="streak-max-wrap">
+                            <div class="streak-max-label">历史最长</div>
+                            <div class="streak-max-val" id="streakMax">0</div>
+                        </div>
+                    </div>
+
+                    <!-- Activity heatmap -->
+                    <div class="stats-card">
+                        <div class="stats-card__title">最近 28 天活动</div>
+                        <div id="statsHeatmap" class="stats-heatmap"></div>
+                    </div>
+
+                    <!-- Quiz score trend -->
+                    <div class="stats-card">
+                        <div class="stats-card__title">测验分数趋势（最近 10 次）</div>
+                        <div class="stats-chart-wrap">
+                            <canvas id="statsQuizChart"></canvas>
+                        </div>
+                        <div id="statsNoQuiz" class="stats-empty" style="display:none;">暂无测验记录</div>
+                    </div>
+
+                    <!-- Review completion -->
+                    <div class="stats-card">
+                        <div class="stats-card__title">今日复习完成率</div>
+                        <div class="stats-review-rate">
+                            <div class="rate-bar-wrap">
+                                <div class="rate-bar-bg">
+                                    <div id="statsRateBar" class="rate-bar-fill"></div>
+                                </div>
+                                <span id="statsRateText" class="rate-text">--</span>
+                            </div>
+                            <div id="statsRateDetail" class="rate-detail"></div>
+                        </div>
+                    </div>
+
+                    <!-- KB stats -->
+                    <div class="stats-card">
+                        <div class="stats-card__title">知识库概况</div>
+                        <div id="statsKbInfo" class="stats-kb-grid"></div>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <!-- Studio Panel (right) -->
@@ -194,6 +253,10 @@
                     <button id="openReviewBtn" class="tool-btn">
                         <span class="material-symbols-outlined">event_repeat</span>
                         <span class="tool-btn__label">复习</span>
+                    </button>
+                    <button id="openStatsBtn" class="tool-btn">
+                        <span class="material-symbols-outlined">bar_chart</span>
+                        <span class="tool-btn__label">学习统计</span>
                     </button>
                     <button id="memoryBtn" class="tool-btn">
                         <span class="material-symbols-outlined">edit_note</span>
@@ -423,6 +486,7 @@
     </div>
 
     <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script src="js/vendor/jsmind.js"></script>
     <script src="js/api.js?v=9"></script>
     <script src="js/chat.js?v=9"></script>
@@ -430,6 +494,7 @@
     <script src="js/upload.js?v=9"></script>
     <script src="js/mindmap.js?v=9"></script>
     <script src="js/review.js?v=1"></script>
+    <script src="js/stats.js?v=1"></script>
     <script src="js/app.js?v=9"></script>
 </body>
 </html>

@@ -1,6 +1,14 @@
 // API Client for backend communication
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
+function _localDateStr() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
 class APIClient {
     constructor() {
         this.baseUrl = API_BASE_URL;
@@ -92,6 +100,7 @@ class APIClient {
         formData.append('api_key', apiKey);
         formData.append('assistant_id', assistantId);
         formData.append('session_id', sessionId || '');
+        formData.append('client_date', _localDateStr());
 
         // Use fetch for POST, then create EventSource-like handler
         return fetch(`${this.baseUrl}/api/chat`, {
@@ -231,12 +240,14 @@ class APIClient {
     }
 
     // Grade quiz
-    async gradeQuiz(apiKey, assistantId, questions, answers) {
+    async gradeQuiz(apiKey, assistantId, questions, answers, difficulty = 'medium') {
         const formData = new FormData();
         formData.append('api_key', apiKey);
         formData.append('assistant_id', assistantId);
         formData.append('questions_json', JSON.stringify(questions));
         formData.append('answers_json', JSON.stringify(answers));
+        formData.append('client_date', _localDateStr());
+        formData.append('difficulty', difficulty);
 
         const response = await fetch(`${this.baseUrl}/api/quiz/grade`, {
             method: 'POST',
@@ -455,6 +466,7 @@ class APIClient {
         formData.append('api_key', apiKey || '');
         formData.append('assistant_id', assistantId);
         formData.append('user_response_json', JSON.stringify(responsePayload));
+        formData.append('client_date', _localDateStr());
         const response = await fetch(`${this.baseUrl}/api/reviews/${itemId}/grade`, {
             method: 'POST',
             body: formData
@@ -508,6 +520,19 @@ class APIClient {
             const error = await response.json().catch(() => ({ detail: '生成失败' }));
             throw new Error(error.detail || 'Failed to draft review card');
         }
+        return await response.json();
+    }
+
+    async getUserStats() {
+        const response = await fetch(`${this.baseUrl}/api/stats/user`);
+        if (!response.ok) throw new Error('Failed to fetch user stats');
+        return await response.json();
+    }
+
+    async getDashboardStats(assistantId, date = '') {
+        const params = new URLSearchParams({ date });
+        const response = await fetch(`${this.baseUrl}/api/stats/dashboard/${assistantId}?${params}`);
+        if (!response.ok) throw new Error('Failed to fetch dashboard stats');
         return await response.json();
     }
 }

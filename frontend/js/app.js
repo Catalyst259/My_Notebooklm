@@ -22,6 +22,7 @@ class App {
         uploadManager.init();
         mindmapManager.init();
         reviewManager.init();
+        statsManager.init();
 
         this.setupEventListeners();
         this.loadApiKey();
@@ -87,14 +88,15 @@ class App {
     }
 
     setBodyMode(mode) {
-        // mode: 'selection' | 'chat' | 'quiz' | 'mindmap' | 'review'
+        // mode: 'selection' | 'chat' | 'quiz' | 'mindmap' | 'review' | 'stats'
         const body = document.body;
-        body.classList.remove('is-assistant-selection', 'is-quiz-fullscreen', 'is-chat', 'is-mindmap', 'is-review');
+        body.classList.remove('is-assistant-selection', 'is-quiz-fullscreen', 'is-chat', 'is-mindmap', 'is-review', 'is-stats');
         if (mode === 'selection') body.classList.add('is-assistant-selection');
         else if (mode === 'quiz') body.classList.add('is-quiz-fullscreen');
         else if (mode === 'chat') body.classList.add('is-chat');
         else if (mode === 'mindmap') body.classList.add('is-mindmap');
         else if (mode === 'review') body.classList.add('is-review');
+        else if (mode === 'stats') body.classList.add('is-stats');
 
         const sessions = document.getElementById('sessionListContainer');
         const maps = document.getElementById('mindmapListContainer');
@@ -275,6 +277,7 @@ class App {
         document.getElementById('quizView').classList.remove('active');
         document.getElementById('mindmapView').classList.remove('active');
         document.getElementById('reviewView').classList.remove('active');
+        document.getElementById('statsView').classList.remove('active');
         this.setBodyMode('selection');
         const headerCurrent = document.getElementById('headerCurrent');
         if (headerCurrent) headerCurrent.innerHTML = '';

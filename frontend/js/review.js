@@ -30,6 +30,7 @@ class ReviewManager {
             showToast('请先选择助手', 'error');
             return;
         }
+        document.getElementById('statsView').classList.remove('active');
         document.getElementById('assistantSelectionView').classList.remove('active');
         document.getElementById('chatView').classList.remove('active');
         document.getElementById('quizView').classList.remove('active');
